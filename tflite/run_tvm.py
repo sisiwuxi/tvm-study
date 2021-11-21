@@ -1,3 +1,4 @@
+# flatc version 1.11.0
 # $ python3.6 run_tvm.py
 # https://github.com/FrozenGene/tvm-tutorial.git
 # tvm.__version__ '0.8.dev0'
