@@ -1,0 +1,209 @@
+    for b in range(0, B_CB-1, 1):
+        for m in range(0, M_CM, 1):
+            for n in range(0, N_CN, 1):
+                for k in range(0, K_CK, 1):
+                    for cb in range(0, CB_SB-1, 1):
+                        for cm in range(0, CM_SM, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                    for cb in range(CB_SB-1, CB_SB, 1):
+                        for cm in range(0, CM_SM-1, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                        for cm in range(CM_SM-1, CM_SM, 1):
+                            for cn in range(0, CN_SN-1, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                            for cn in range(CN_SN-1, CN_SN, 1):
+                                for ck in range(0, CK_SK-1, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                                for ck in range(CK_SK-1, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+    for b in range(B_CB-1, B_CB, 1):
+        for m in range(0, M_CM-1, 1):
+            for n in range(0, N_CN, 1):
+                for k in range(0, K_CK, 1):
+                    for cb in range(0, CB_SB-1, 1):
+                        for cm in range(0, CM_SM, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                    for cb in range(CB_SB-1, CB_SB, 1):
+                        for cm in range(0, CM_SM-1, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                        for cm in range(CM_SM-1, CM_SM, 1):
+                            for cn in range(0, CN_SN-1, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                            for cn in range(CN_SN-1, CN_SN, 1):
+                                for ck in range(0, CK_SK-1, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                                for ck in range(CK_SK-1, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+        for m in range(M_CM-1, M_CM, 1):
+            for n in range(0, N_CN-1, 1):
+                for k in range(0, K_CK, 1):
+                    for cb in range(0, CB_SB-1, 1):
+                        for cm in range(0, CM_SM, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                    for cb in range(CB_SB-1, CB_SB, 1):
+                        for cm in range(0, CM_SM-1, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                        for cm in range(CM_SM-1, CM_SM, 1):
+                            for cn in range(0, CN_SN-1, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                            for cn in range(CN_SN-1, CN_SN, 1):
+                                for ck in range(0, CK_SK-1, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                                for ck in range(CK_SK-1, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+            for n in range(N_CN-1, N_CN, 1):
+                for k in range(0, K_CK-1, 1):
+                    for cb in range(0, CB_SB-1, 1):
+                        for cm in range(0, CM_SM, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                    for cb in range(CB_SB-1, CB_SB, 1):
+                        for cm in range(0, CM_SM-1, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                        for cm in range(CM_SM-1, CM_SM, 1):
+                            for cn in range(0, CN_SN-1, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                            for cn in range(CN_SN-1, CN_SN, 1):
+                                for ck in range(0, CK_SK-1, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                                for ck in range(CK_SK-1, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                for k in range(K_CK-1, K_CK, 1):
+                    for cb in range(0, CB_SB-1, 1):
+                        for cm in range(0, CM_SM, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                    for cb in range(CB_SB-1, CB_SB, 1):
+                        for cm in range(0, CM_SM-1, 1):
+                            for cn in range(0, CN_SN, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                        for cm in range(CM_SM-1, CM_SM, 1):
+                            for cn in range(0, CN_SN-1, 1):
+                                for ck in range(0, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                            for cn in range(CN_SN-1, CN_SN, 1):
+                                for ck in range(0, CK_SK-1, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call
+                                for ck in range(CK_SK-1, CK_SK, 1):
+                                    for sb in range(0, SB_RB, 1):
+                                        for sm in range(0, SM_RM, 1):
+                                            for sn in range(0, SN_RN, 1):
+                                                for sk in range(0, SK_RK, 1):
+                                                    call

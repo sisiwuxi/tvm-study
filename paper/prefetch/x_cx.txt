@@ -1,0 +1,690 @@
+#map0 = affine_map<(d0, d1, d2, d3) -> (d0 + d1 + d2 + d3)>
+#map1 = affine_map<(d0, d1, d2, d3) -> (d0 * 32 + d1 * 16 + d2 * 16 + d3)>
+#map2 = affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 32 + d2 * 16 + d3)>
+#map3 = affine_map<(d0, d1, d2, d3) -> (d0 * 256 + d1 * 64 + d2 * 16 + d3)>
+#map4 = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
+#map5 = affine_map<() -> (0)>
+#map6 = affine_map<() -> (16)>
+#map7 = affine_map<() -> (1)>
+#map8 = affine_map<() -> (4)>
+#map9 = affine_map<() -> (2)>
+ 
+ 
+ 
+module @p attributes {factor.executable_id = -1 : i64, factor.target = "dorado"} {
+  func @pullmode_odin_matmul_test(%arg0: memref<1x64x256xf32>, %arg1: memref<1x256x128xf32>, %arg2: memref<1x64x128xf32>, %arg3: index, %arg4: index, %arg5: index, %arg6: index, %arg7: !factor.sync_point<0>, %arg8: !factor.dma<sdma>, %arg9: !factor.cl_params) attributes {factor.arg_num = 2 : i32, factor.implicit_num = 7 : i32, factor.kernel = true, factor.result_num = 1 : i32} {
+    affine.for %arg10 = 0 to 1 {
+      affine.for %arg11 = 0 to 2 {
+        affine.for %arg12 = 0 to 2 {
+          affine.for %arg13 = 0 to 1 {
+ 
+            affine.for %arg14 = 0 to 0 {
+              affine.for %arg15 = 0 to 2 {
+                affine.for %arg16 = 0 to 2 {
+                  affine.for %arg17 = 0 to 4 {
+ 
+                    affine.for %arg18 = 0 to 0 {
+                      affine.for %arg19 = 0 to 1 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    affine.for %arg18 = 0 to 1 {
+ 
+                      affine.for %arg19 = 0 to 0 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      affine.for %arg19 = 0 to 1 {
+ 
+                        affine.for %arg20 = 0 to 1 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        affine.for %arg20 = 1 to 2 {
+ 
+                          affine.for %arg21 = 0 to 3 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          affine.for %arg21 = 3 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+ 
+                        }
+ 
+                      }
+ 
+                    }
+ 
+                  }
+                }
+              }
+            }
+            affine.for %arg14 = 0 to 1 {
+ 
+              affine.for %arg15 = 0 to 1 {
+                affine.for %arg16 = 0 to 2 {
+                  affine.for %arg17 = 0 to 4 {
+ 
+                    affine.for %arg18 = 0 to 0 {
+                      affine.for %arg19 = 0 to 1 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    affine.for %arg18 = 0 to 1 {
+ 
+                      affine.for %arg19 = 0 to 0 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      affine.for %arg19 = 0 to 1 {
+ 
+                        affine.for %arg20 = 0 to 1 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        affine.for %arg20 = 1 to 2 {
+ 
+                          affine.for %arg21 = 0 to 3 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          affine.for %arg21 = 3 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+ 
+                        }
+ 
+                      }
+ 
+                    }
+ 
+                  }
+                }
+              }
+              affine.for %arg15 = 1 to 2 {
+ 
+                affine.for %arg16 = 0 to 1 {
+                  affine.for %arg17 = 0 to 4 {
+ 
+                    affine.for %arg18 = 0 to 0 {
+                      affine.for %arg19 = 0 to 1 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    affine.for %arg18 = 0 to 1 {
+ 
+                      affine.for %arg19 = 0 to 0 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      affine.for %arg19 = 0 to 1 {
+ 
+                        affine.for %arg20 = 0 to 1 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        affine.for %arg20 = 1 to 2 {
+ 
+                          affine.for %arg21 = 0 to 3 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          affine.for %arg21 = 3 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+ 
+                        }
+ 
+                      }
+ 
+                    }
+ 
+                  }
+                }
+                affine.for %arg16 = 1 to 2 {
+ 
+                  affine.for %arg17 = 0 to 3 {
+ 
+                    affine.for %arg18 = 0 to 0 {
+                      affine.for %arg19 = 0 to 1 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    affine.for %arg18 = 0 to 1 {
+ 
+                      affine.for %arg19 = 0 to 0 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      affine.for %arg19 = 0 to 1 {
+ 
+                        affine.for %arg20 = 0 to 1 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        affine.for %arg20 = 1 to 2 {
+ 
+                          affine.for %arg21 = 0 to 3 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          affine.for %arg21 = 3 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+ 
+                        }
+ 
+                      }
+ 
+                    }
+ 
+                  }
+                  affine.for %arg17 = 3 to 4 {
+ 
+                    affine.for %arg18 = 0 to 0 {
+                      affine.for %arg19 = 0 to 1 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    affine.for %arg18 = 0 to 1 {
+ 
+                      affine.for %arg19 = 0 to 0 {
+                        affine.for %arg20 = 0 to 2 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      affine.for %arg19 = 0 to 1 {
+ 
+                        affine.for %arg20 = 0 to 1 {
+                          affine.for %arg21 = 0 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                        affine.for %arg20 = 1 to 2 {
+ 
+                          affine.for %arg21 = 0 to 3 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          affine.for %arg21 = 3 to 4 {
+                            affine.for %arg22 = 0 to 1 {
+                              affine.for %arg23 = 0 to 16 {
+                                affine.for %arg24 = 0 to 16 {
+                                  affine.for %arg25 = 0 to 16 {
+                                    %0 = affine.apply #map0(%arg10, %arg14, %arg18, %arg22)
+                                    %1 = affine.apply #map1(%arg11, %arg15, %arg19, %arg23)
+                                    %2 = affine.apply #map2(%arg12, %arg16, %arg20, %arg24)
+                                    %3 = affine.apply #map3(%arg13, %arg17, %arg21, %arg25)
+                                    %4 = affine.load %arg0[%0, %1, %3] : memref<1x64x256xf32>
+                                    %5 = affine.load %arg1[%0, %3, %2] : memref<1x256x128xf32>
+                                    %6 = affine.load %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                    %7 = mulf %4, %5 : f32
+                                    %8 = addf %6, %7 : f32
+                                    affine.store %8, %arg2[%0, %1, %2] : memref<1x64x128xf32>
+                                  }
+                                }
+                              }
+                            }
+                          }
+ 
+                        }
+ 
+                      }
+ 
+                    }
+ 
+                  }
+                }
+              }
+ 
+            }
+ 
+          }
+        }
+      }
+    }
+    return
+  }
+}
