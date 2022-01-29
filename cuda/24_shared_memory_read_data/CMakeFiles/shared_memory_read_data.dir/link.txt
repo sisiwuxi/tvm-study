@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/shared_memory_read_data.dir/shared_memory_read_data.cu.o -o shared_memory_read_data  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

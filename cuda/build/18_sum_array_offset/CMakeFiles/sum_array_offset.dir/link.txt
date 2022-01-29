@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/sum_array_offset.dir/sum_array_offset.cu.o -o sum_array_offset  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

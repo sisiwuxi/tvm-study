@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/grid_block.dir/grid_block.cu.o -o grid_block  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

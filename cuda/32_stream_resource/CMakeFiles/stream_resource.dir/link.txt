@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/stream_resource.dir/stream_resource.cu.o -o stream_resource  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/zero_copy_memory.dir/zero_copy_memory.cu.o -o zero_copy_memory  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

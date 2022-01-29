@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/multi_add_depth.dir/multi_add_depth.cu.o -o multi_add_depth  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

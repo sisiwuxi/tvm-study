@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/shfl_test.dir/shfl_test.cu.o -o shfl_test  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

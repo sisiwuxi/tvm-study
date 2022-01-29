@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/sum_matrix2D.dir/sum_matrix2D.cu.o -o sum_matrix2D  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

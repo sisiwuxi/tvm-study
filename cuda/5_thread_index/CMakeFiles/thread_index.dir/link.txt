@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/thread_index.dir/thread_index.cu.o -o thread_index  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"

@@ -1,0 +1,1 @@
+/usr/bin/g++ CMakeFiles/transform_shared_memory.dir/transform_shared_memory.cu.o -o transform_shared_memory  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-9.0/lib64/stubs" -L"/usr/local/cuda-9.0/lib64"
