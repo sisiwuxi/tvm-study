@@ -1,5 +1,6 @@
 from tvm import te
 import tvm
+import pdb
 n = 1024
 m = 1024
 
@@ -13,5 +14,6 @@ s = te.create_schedule(B.op)
 print(tvm.lower(s, [A, B], simple_mode=True))
 print("---------cutting line---------")
 
-s[B].parallel(B.op.reduce_axis[0])
+b1 = s[B].parallel(B.op.reduce_axis[0])
+# pdb.set_trace()
 print(tvm.lower(s, [A, B], simple_mode=True))

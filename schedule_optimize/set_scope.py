@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 n = 1024
 dtype = "float32"
 A = te.placeholder((n, n), dtype=dtype, name='A')
@@ -12,6 +13,7 @@ s = te.create_schedule(C.op)
 print(tvm.lower(s, [A, C], simple_mode=True))
 print("---------cutting line---------")
 
-s[B].set_scope('shared')
-
+# s1 = s[B].set_scope('shared')
+s1 = s[B].set_scope('local')
+# pdb.set_trace()
 print(tvm.lower(s, [A, C], simple_mode=True))

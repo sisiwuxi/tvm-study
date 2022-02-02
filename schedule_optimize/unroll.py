@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 
 n = 1024
 A = te.placeholder((n, n), name='A')
@@ -13,6 +14,7 @@ xo, xi = s[C].split(s[C].op.axis[0], factor=4)
 print(tvm.lower(s, [A, B, C], simple_mode=True))
 print("---------cutting line---------")
 
-s[C].unroll(xi)
+s1 = s[C].unroll(xi)
+pdb.set_trace()
 
 print(tvm.lower(s, [A, B, C], simple_mode=True))

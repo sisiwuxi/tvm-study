@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 n = 1024
 dtype = "float32"
 A = te.placeholder((n, n), dtype=dtype, name='A')
@@ -12,5 +13,5 @@ print(tvm.lower(s, [A, B], simple_mode=True))
 print("---------cutting line---------")
 
 BW = s.cache_write(B, "local")
-
+pdb.set_trace()
 print(tvm.lower(s, [A, B], simple_mode=True))

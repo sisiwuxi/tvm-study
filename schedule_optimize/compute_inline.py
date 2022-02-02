@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 n = 1024
 k = 3
 pad = 2
@@ -26,7 +27,7 @@ s = te.create_schedule(B.op)
 print(tvm.lower(s, [A, W, B], simple_mode=True))
 print("---------cutting line---------")
 
-s[Apad].compute_inline()
-
+s1 = s[Apad].compute_inline()
+# pdb.set_trace()
 print(tvm.lower(s, [A, W, B], simple_mode=True))
 exit(0)

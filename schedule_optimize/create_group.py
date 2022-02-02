@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 n = 1024
 k = te.reduce_axis((0, n), name='k')
 
@@ -15,7 +16,11 @@ s = te.create_schedule(F.op)
 print(tvm.lower(s, [A, B, E], simple_mode=True))
 print("---------cutting line---------")
 
+# group D & E
 g = s.create_group(outputs = E, inputs = [A, B], include_inputs=True)
+# compute D & E at F
 g.compute_at(s[F], F.op.reduce_axis[0])
+# s[E].compute_at(s[D], D.op.reduce_axis[0]) # error
+# s[E].compute_at(s[F], F.op.reduce_axis[0]) # group E & F only
 
 print(tvm.lower(s, [A, B, E], simple_mode=True))

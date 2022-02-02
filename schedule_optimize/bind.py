@@ -1,5 +1,6 @@
 from tvm import te
 import tvm
+import pdb
 
 n = 1024
 A = te.placeholder((n,), name='A')
@@ -14,7 +15,7 @@ ko, ki = s[B].split(B.op.reduce_axis[0], factor=32)
 print(tvm.lower(s, [A, B], simple_mode=True))
 print("---------cutting line---------")
 
-s[B].bind(ko, te.thread_axis("blockIdx.x"))
-s[B].bind(ki, te.thread_axis("threadIdx.x"))
-
+b1 = s[B].bind(ko, te.thread_axis("blockIdx.x"))
+b2 = s[B].bind(ki, te.thread_axis("threadIdx.x"))
+# pdb.set_trace()
 print(tvm.lower(s, [A, B], simple_mode=True))

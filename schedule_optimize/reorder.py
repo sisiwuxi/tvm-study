@@ -1,6 +1,6 @@
 import tvm
 from tvm import te
-
+import pdb
 n = 1024
 A = te.placeholder((n, n), name='A')
 B = te.placeholder((n,n), name='B')
@@ -14,6 +14,7 @@ yo, yi = s[C].split(s[C].op.axis[1], factor=32)
 print(tvm.lower(s, [A, B, C], simple_mode=True))
 print("---------cutting line---------")
 
-s[C].reorder(xo, yo, yi, xi)
-
+s1 = s[C].reorder(xo, yo, yi, xi)
+print(s1)
+# pdb.set_trace()
 print(tvm.lower(s, [A, B, C], simple_mode=True))

@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+import pdb
 n = 1024
 A = te.placeholder((n,), name='A')
 k = te.reduce_axis((0, n), 'k')
@@ -15,6 +16,6 @@ s[B].bind(s[B].op.reduce_axis[0], tx)
 print(tvm.lower(s, [A, B], simple_mode=True))
 print("---------cutting line---------")
 
-s[BF].compute_at(s[B], s[B].op.reduce_axis[0])
-
+s1 = s[BF].compute_at(s[B], s[B].op.reduce_axis[0])
+# pdb.set_trace()
 print(tvm.lower(s, [A, B], simple_mode=True))

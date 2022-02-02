@@ -1,5 +1,7 @@
 import tvm
 from tvm import te
+import pdb
+
 n = 1024
 m = 1024
 A = te.placeholder((n, m), name='A')
@@ -15,6 +17,7 @@ ko, ki = s[B].split(B.op.reduce_axis[0], factor=4)
 print(tvm.lower(s, [A, B], simple_mode=True))
 print("---------cutting line---------")
 
-s[B].pragma(ki, "unroll")
-
+s1 = s[B].pragma(ki, "unroll")
+# s1 = s[B].pragma(ko, "vectorize") # error
+pdb.set_trace()
 print(tvm.lower(s, [A, B], simple_mode=True))

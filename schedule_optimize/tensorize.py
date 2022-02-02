@@ -1,6 +1,7 @@
 import tvm
 from tvm import te
 from tvm import relay
+import pdb
 
 N, M, L = 1024, 512, 64
 A = te.placeholder((N, L), name='A')
@@ -31,14 +32,16 @@ def intrin_gemv(m, l):
 factor = 16
 x, y = C.op.axis
 z, = C.op.reduce_axis
-yo, yi = s[C].split(y, factor=factor)
-s[C].reorder(x, yo, yi, z)
+# yo, yi = s[C].split(y, factor=factor)
+# s[C].reorder(x, yo, yi, z)
+xo, yo, xi, yi = s[C].tile(C.op.axis[0], C.op.axis[1], factor, factor)
 
 gemv = intrin_gemv(factor, L)
 
 print(tvm.lower(s, [A, B, C], simple_mode=True))
 print("---------cutting line---------")
 
-s[C].tensorize(yi, gemv)
-
+s1 = s[C].tensorize(yi, gemv)
+# s1 = s[C].tensorize(yo, gemv) # error
+# pdb.set_trace()
 print(tvm.lower(s, [A, B, C], simple_mode=True))
