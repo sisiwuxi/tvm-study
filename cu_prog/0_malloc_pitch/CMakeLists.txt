@@ -1,0 +1,1 @@
+add_executable(mallocPitch mallocPitch.cu)

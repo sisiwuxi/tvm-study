@@ -27,9 +27,9 @@ TASK = "gemm"
 USE_MANUAL_CODE = False
 
 
-@tvm.register_func("tvm_callback_cuda_compile", override=True)
+@tvm.register_func
 def tvm_callback_cuda_compile(code):
-    ptx = nvcc.compile_cuda(code, target_format="ptx")
+    ptx = nvcc.compile_cuda(code, target="ptx")
     return ptx
 
 
@@ -50,10 +50,12 @@ def tvm_callback_cuda_postproc(code):
 
 def test_gemm():
     # graph
-    nn = 2048
+    # nn = 2048
+    nn = 8
     n = te.var("n")
     n = tvm.runtime.convert(nn)
     m, l = n, n
+    # Algorithm
     A = te.placeholder((l, n), name="A")
     B = te.placeholder((l, m), name="B")
     k = te.reduce_axis((0, l), name="k")
@@ -61,46 +63,69 @@ def test_gemm():
 
     # schedule
     s = te.create_schedule(C.op)
+    # Memory Hierarchy
+    # GPU provides a cache buffer called shared memory. we load both AA and BB in
+    # the shared memory. These bufferes will be later shared by all threads within 
+    # the same thread block to compute the gemm.  Each thread then loads its own 
+    # part from shared buffer into their local registers, AL, BL, CC is a local cache 
+    # of output C, which is also stored in the thread local registers.
     AA = s.cache_read(A, "shared", [C])
     BB = s.cache_read(B, "shared", [C])
     AL = s.cache_read(AA, "local", [C])
     BL = s.cache_read(BB, "local", [C])
     CC = s.cache_write(C, "local")
 
+    # Blocking
+    # The following code splits the workload into thread blocks and individual threads. 
+    # A thread block is responsible for computing a region of block_factor x block_factor
+    # (64 x 64) for output m and n.
     scale = 8
     num_thread = 8
+    vthread = 2
     block_factor = scale * num_thread
+    # Get the GPU thread indices
     block_x = te.thread_axis("blockIdx.x")
-    thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
     block_y = te.thread_axis("blockIdx.y")
+    thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
     thread_y = te.thread_axis((0, num_thread), "threadIdx.y")
-    thread_xz = te.thread_axis((0, 2), "vthread", name="vx")
-    thread_yz = te.thread_axis((0, 2), "vthread", name="vy")
-
+    # thread_xz = te.thread_axis((0, vthread), "vthread", name="vx")
+    # thread_yz = te.thread_axis((0, vthread), "vthread", name="vy")
+    # Split the workloads
     by, yi = s[C].split(C.op.axis[0], factor=block_factor)
     bx, xi = s[C].split(C.op.axis[1], factor=block_factor)
+    # Bind the iteration variables to GPU thread indices
     s[C].bind(by, block_y)
     s[C].bind(bx, block_x)
-    s[C].reorder(by, bx, yi, xi)
+    # s[C].reorder(by, bx, yi, xi)
 
-    tyz, yi = s[C].split(yi, nparts=2)
+    # Virtual Thread Split
+    # We further split the workload from a thread block to individual threads. To
+    # avoid *memory bank conflict*, we use virtual thread to split the area into 4
+    # parts, and then tile into 8x8 grids. Therefore, shown in the figure below,
+    # each thread computes 4 strided grids, where size of each grid is 4 x 4.
+    # tyz, yi = s[C].split(yi, nparts=vthread)
+    # txz, xi = s[C].split(xi, nparts=vthread)
     ty, yi = s[C].split(yi, nparts=num_thread)
-    txz, xi = s[C].split(xi, nparts=2)
     tx, xi = s[C].split(xi, nparts=num_thread)
-    s[C].bind(tyz, thread_yz)
-    s[C].bind(txz, thread_xz)
+    # s[C].bind(tyz, thread_yz)
+    # s[C].bind(txz, thread_xz)
     s[C].bind(ty, thread_y)
     s[C].bind(tx, thread_x)
-    s[C].reorder(tyz, txz, ty, tx, yi, xi)
+    # s[C].reorder(tyz, txz, ty, tx, yi, xi)
     s[CC].compute_at(s[C], tx)
 
+    # Cooperative Fetching
+    # As mentioned before, each time step we need to transfer block_factor x block_factor
+    # data from GPU global memory to shared memory. In order to reduce the memory
+    # transfer per thread, the following code lets threads in the same thread block
+    # coopertively fetch dependent data from global memory.
     yo, xo = CC.op.axis
     ko, ki = s[CC].split(k, factor=8)
     kt, ki = s[CC].split(ki, factor=1)
-    s[CC].reorder(ko, kt, ki, yo, xo)
+    # s[CC].reorder(ko, kt, ki, yo, xo)
     s[AA].compute_at(s[CC], ko)
     s[BB].compute_at(s[CC], ko)
-    s[CC].unroll(kt)
+    # s[CC].unroll(kt)
     s[AL].compute_at(s[CC], kt)
     s[BL].compute_at(s[CC], kt)
     # Schedule for A's shared memory load
@@ -109,16 +134,18 @@ def test_gemm():
     tx, xi = s[AA].split(xi, nparts=num_thread)
     s[AA].bind(ty, thread_y)
     s[AA].bind(tx, thread_x)
-    s[AA].vectorize(xi)
+    # s[AA].vectorize(xi)
     # Schedule for B' shared memory load
     ty, xi = s[BB].split(s[BB].op.axis[0], nparts=num_thread)
     _, xi = s[BB].split(s[BB].op.axis[1], factor=num_thread * 4)
     tx, xi = s[BB].split(xi, nparts=num_thread)
     s[BB].bind(ty, thread_y)
     s[BB].bind(tx, thread_x)
-    s[BB].vectorize(xi)
-    s[AA].double_buffer()
-    s[BB].double_buffer()
+    # s[BB].vectorize(xi)
+    # s[AA].double_buffer()
+    # s[BB].double_buffer()
+
+
     # correctness
     def check_device(device):
         dev = tvm.device(device, 0)
@@ -126,6 +153,9 @@ def test_gemm():
             print("Skip because %s is not enabled" % device)
             return
         print("Device %s" % device)
+        # Generate CUDA Kernel
+        # Finally we use TVM to generate and compile the CUDA kernel, and evaluate the
+        # latency of gemm.
         f = tvm.build(s, [A, B, C], device)
         # launch the kernel.
         n, m, l = nn, nn, nn
@@ -145,12 +175,12 @@ def test_gemm():
         GFLOPS = num_flops / (t * 1e3) / 1e6
         print("average time cost of %d runs = %g ms, %g GFLOPS." % (num_runs, t * 1e3, GFLOPS))
 
-    for device in ["cuda", "opencl", "rocm", "nvptx", "vulkan"]:
-        with tvm.transform.PassContext(
-            config={"tir.UnrollLoop": {"auto_max_step": 128, "explicit_unroll": device != "cuda"}}
-        ):
-            check_device(device)
-
+    # for device in ["cuda", "opencl", "rocm", "nvptx", "vulkan"]:
+    #     with tvm.transform.PassContext(
+    #         config={"tir.UnrollLoop": {"auto_max_step": 128, "explicit_unroll": device != "cuda"}}
+    #     ):
+    #         check_device(device)
+    check_device("cuda")
 
 if __name__ == "__main__":
     test_gemm()
