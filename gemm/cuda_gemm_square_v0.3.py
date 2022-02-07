@@ -62,24 +62,51 @@ def test_gemm():
     RHS = te.placeholder((k, n), name="RHS")
     k = te.reduce_axis((0, k), name="k")
     OUT = te.compute((m, n), lambda i, j: te.sum(LHS[i, k] * RHS[k, j], axis=k), name="OUT")   
+    
+    # schedule
     s = te.create_schedule(OUT.op)
 
-    num_thread = m*n
-    # num_block = (num_thread + total_thread - 1)/total_thread
+    scale = 8
+    num_thread = 8
+    block_factor = scale*num_thread
+
+    LHS_S = s.cache_read(LHS, "shared", [OUT])
+    RHS_S = s.cache_read(RHS, "shared", [OUT])
+    LHS_L = s.cache_read(LHS_S, "local", [OUT])
+    RHS_L = s.cache_read(RHS_S, "local", [OUT])
+    OUT_L = s.cache_write(OUT, "local")
+
     # Get the GPU thread indices
     block_x = te.thread_axis("blockIdx.x")
+    block_y = te.thread_axis("blockIdx.y")
     thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
+    thread_y = te.thread_axis((0, num_thread), "threadIdx.y")
 
-    mo, no = OUT.op.axis
-    # pdb.set_trace()
-    # average time cost of 10 runs = 0.010648 ms, 6.15468 GFLOPS
-    # s[OUT].bind(no, block_x)
-    # s[OUT].bind(mo, thread_x)
+    bm, mi = s[OUT].split(OUT.op.axis[0], factor=block_factor)
+    bn, ni = s[OUT].split(OUT.op.axis[1], factor=block_factor)
+    s[OUT].bind(bm, block_x)
+    s[OUT].bind(bn, block_y)
+    tm, mi = s[OUT].split(mi, nparts=num_thread)
+    tn, ni = s[OUT].split(ni, nparts=num_thread)
+    s[OUT].bind(tm, thread_x)
+    s[OUT].bind(tn, thread_y)
+    # s[OUT_L].compute_at(s[OUT], tm)
+    s[OUT_L].compute_at(s[OUT], tn)
 
-    # average time cost of 10 runs = 0.0074786 ms, 8.763 GFLOPS
-    # (8.763-6.15468)/6.15468 = 42.38% speedup
-    s[OUT].bind(mo, block_x)
-    s[OUT].bind(no, thread_x)
+    s[LHS_S].compute_at(s[OUT_L], k)
+    s[RHS_S].compute_at(s[OUT_L], k)
+    s[LHS_L].compute_at(s[OUT_L], k)
+    s[RHS_L].compute_at(s[OUT_L], k)
+
+    ty, yi = s[LHS_S].split(s[LHS_S].op.axis[0], nparts=num_thread)
+    tx, xi = s[LHS_S].split(s[LHS_S].op.axis[1], nparts=num_thread)
+    s[LHS_S].bind(ty, thread_y)
+    s[LHS_S].bind(tx, thread_x)    
+
+    ty, yi = s[RHS_S].split(s[RHS_S].op.axis[0], nparts=num_thread)
+    tx, xi = s[RHS_S].split(s[RHS_S].op.axis[1], nparts=num_thread)
+    s[RHS_S].bind(ty, thread_y)
+    s[RHS_S].bind(tx, thread_x)
 
     # correctness
     def check_device(device):

@@ -48,9 +48,13 @@ def tvm_callback_cuda_postproc(code):
 
 def test_gemm():
     # dot
-    M = 16
-    N = 32
-    K = 64
+    # M = 16
+    # N = 32
+    # K = 64
+    M = 2048
+    N = 2048
+    # average time cost of 10 runs = 25.8989 ms, 82.9181 GFLOPS
+    K = 2048
     m = te.var("n")
     m = tvm.runtime.convert(M)
     n = te.var("n")
@@ -64,22 +68,34 @@ def test_gemm():
     OUT = te.compute((m, n), lambda i, j: te.sum(LHS[i, k] * RHS[k, j], axis=k), name="OUT")   
     s = te.create_schedule(OUT.op)
 
-    num_thread = m*n
-    # num_block = (num_thread + total_thread - 1)/total_thread
+    num_thread = 256
+    num_block = (M*N + num_thread - 1)//num_thread
+    print(num_block, num_thread)
     # Get the GPU thread indices
     block_x = te.thread_axis("blockIdx.x")
+    block_y = te.thread_axis("blockIdx.y")
     thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
+    thread_y = te.thread_axis((0, num_thread), "threadIdx.y")
 
-    mo, no = OUT.op.axis
-    # pdb.set_trace()
-    # average time cost of 10 runs = 0.010648 ms, 6.15468 GFLOPS
-    # s[OUT].bind(no, block_x)
-    # s[OUT].bind(mo, thread_x)
+    # # original
+    # # average time cost of 10 runs = 0.010648 ms, 6.15468 GFLOPS
+    # s[OUT].bind(OUT.op.axis[0], thread_x)
+    # s[OUT].bind(OUT.op.axis[1], block_x)
 
-    # average time cost of 10 runs = 0.0074786 ms, 8.763 GFLOPS
-    # (8.763-6.15468)/6.15468 = 42.38% speedup
-    s[OUT].bind(mo, block_x)
-    s[OUT].bind(no, thread_x)
+    # # opt1
+    # # average time cost of 10 runs = 0.0074786 ms, 8.763 GFLOPS
+    # # (8.763-6.15468)/6.15468 = 42.38% speedup
+    # # issue: when m=n=k=2048, CUDA_ERROR_INVALID_VALUE grid=(2048,1,1),  block=(2048,1,1)
+    # #   grid=(2048,1,1),  block=(2048,1,1) //block=(2048,1,1)
+    # #       2048>maxThreadsPerBlock    
+    # s[OUT].bind(OUT.op.axis[0], block_x)
+    # s[OUT].bind(OUT.op.axis[1], thread_x)
+
+    # opt2
+    # average time cost of 10 runs = 799.699 ms, 21.4829 GFLOPS
+    s[OUT].bind(OUT.op.axis[0], block_x)
+    bn, tn = s[OUT].split(OUT.op.axis[1], factor=2)
+    s[OUT].bind(bn, thread_x)
 
     # correctness
     def check_device(device):
