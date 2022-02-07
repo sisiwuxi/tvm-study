@@ -1,0 +1,1 @@
+add_executable(convert_color_greyscale convert_color_greyscale.cu)
