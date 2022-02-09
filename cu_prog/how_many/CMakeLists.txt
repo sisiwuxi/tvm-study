@@ -1,0 +1,1 @@
+add_executable(how_many how_many.cu)

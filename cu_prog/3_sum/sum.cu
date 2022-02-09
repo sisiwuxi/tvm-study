@@ -2,43 +2,45 @@
 #include "sys/time.h"
 
 __global__
-void sum_global(float *input, float *output)
+void sum_global(float *input, float *output, int thread)
 {
+    int bid = blockIdx.x;
     int tid = threadIdx.x;
-    int thread = blockDim.x;
+    int idx = bid*blockDim.x + tid;
 
     for (int i=thread/2; i>0; i>>=1)
     {
-        if (tid < i)
+        if (idx < i)
         {
-            input[tid] += input[tid + i];
+            input[idx] += input[idx + i];
         }
         __syncthreads();
     }
-    if (tid == 0)
+    if (idx == 0)
     {
         output[0] = input[0];
     }
 }
 
 __global__
-void sum_shared(float *a, float *b)
+void sum_shared(float *a, float *b, int thread)
 {
+    int bid = blockIdx.x;
     int tid = threadIdx.x;
-    int thread = blockDim.x;
+    int idx = bid*blockDim.x + tid;
     
     extern __shared__ float sData[];
-    sData[tid] = a[tid];
+    sData[idx] = a[idx];
     __syncthreads();
     for (int i=thread/2; i>0; i>>=1)
     {
-        if (tid < i)
+        if (idx < i)
         {
-            sData[tid] = sData[tid] + sData[tid + i];
+            sData[idx] += sData[idx + i];
         }
         __syncthreads();
     }
-    if (tid == 0)
+    if (idx == 0)
     {
         b[0] = sData[0];
     }
@@ -55,12 +57,13 @@ void cpuSum(float *a, float *b, int thread)
 
 int main()
 {
-    int thread = 102400;//4096;//1024;
+    int maxThreadsPerBlock = 1024;
+    int thread = 8192;//102400;//8192;//8194;//4096;//1024;
     float a[thread];
     for (int i=0; i<thread; ++i)
     {
         // a[i] = i*(i+1);
-        a[i] = i;
+        a[i] = 1.0f;
     }
     float *aGpu;
     cudaMalloc((void**)&aGpu, thread*sizeof(float));
@@ -80,6 +83,7 @@ int main()
     long int latency_cpu = (endTime.tv_sec - startTime.tv_sec)*1000000 + (endTime.tv_usec - startTime.tv_usec);    
     printf("cpuSum:%f latency_cpu = %ld\n", b[0], latency_cpu);
 
+    int Dg = (thread + maxThreadsPerBlock - 1)/maxThreadsPerBlock;
 
     float *bGpu_global;
     cudaMalloc((void**)&bGpu_global, 1*sizeof(float));
@@ -87,7 +91,7 @@ int main()
     for (int i=0; i<iterations; ++i)
     {
         cudaMemcpy(aGpu, a, thread*sizeof(float), cudaMemcpyHostToDevice);
-        sum_global<<<1, thread>>>(aGpu, bGpu_global);
+        sum_global<<<Dg, maxThreadsPerBlock>>>(aGpu, bGpu_global, thread);
     }
     gettimeofday(&endTime, NULL);
     long int latency_global = (endTime.tv_sec - startTime.tv_sec)*1000000 + (endTime.tv_usec - startTime.tv_usec);    
@@ -103,7 +107,7 @@ int main()
     gettimeofday(&startTime, NULL);
     for (int i=0; i<iterations; ++i)
     {
-        sum_shared<<<1, thread, thread*sizeof(float)>>>(aGpu, bGpu_shared);
+        sum_shared<<<Dg, maxThreadsPerBlock, maxThreadsPerBlock*sizeof(float)>>>(aGpu, bGpu_shared, thread);
     }
     gettimeofday(&endTime, NULL);
     long int latency_shared = (endTime.tv_sec - startTime.tv_sec)*1000000 + (endTime.tv_usec - startTime.tv_usec);
