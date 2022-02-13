@@ -48,9 +48,9 @@ def tvm_callback_cuda_postproc(code):
 
 def test_gemm():
     # dot
-    M = 16
-    N = 32
-    K = 64
+    M = 1024
+    N = 1024
+    K = 1024
     m = te.var("n")
     m = tvm.runtime.convert(M)
     n = te.var("n")
@@ -107,6 +107,9 @@ def test_gemm():
     tx, xi = s[RHS_S].split(s[RHS_S].op.axis[1], nparts=num_thread)
     s[RHS_S].bind(ty, thread_y)
     s[RHS_S].bind(tx, thread_x)
+    
+    mod = tvm.lower(s, [LHS, RHS, OUT], simple_mode=True, name="gemm")
+    print(mod.astext(show_meta_data=False))
 
     # correctness
     def check_device(device):

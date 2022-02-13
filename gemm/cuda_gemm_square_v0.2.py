@@ -72,15 +72,15 @@ def test_gemm():
     num_block = (M*N + num_thread - 1)//num_thread
     print(num_block, num_thread)
     # Get the GPU thread indices
-    block_x = te.thread_axis("blockIdx.x")
-    block_y = te.thread_axis("blockIdx.y")
-    thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
-    thread_y = te.thread_axis((0, num_thread), "threadIdx.y")
+    # block_x = te.thread_axis("blockIdx.x")
+    # block_y = te.thread_axis("blockIdx.y")
+    # thread_x = te.thread_axis((0, num_thread), "threadIdx.x")
+    # thread_y = te.thread_axis((0, num_thread), "threadIdx.y")
 
     # # original
     # # average time cost of 10 runs = 0.010648 ms, 6.15468 GFLOPS
-    # s[OUT].bind(OUT.op.axis[0], thread_x)
-    # s[OUT].bind(OUT.op.axis[1], block_x)
+    # s[OUT].bind(OUT.op.axis[0], te.thread_axis("threadIdx.x"))
+    # s[OUT].bind(OUT.op.axis[1], te.thread_axis("blockIdx.x"))
 
     # # opt1
     # # average time cost of 10 runs = 0.0074786 ms, 8.763 GFLOPS
@@ -88,14 +88,17 @@ def test_gemm():
     # # issue: when m=n=k=2048, CUDA_ERROR_INVALID_VALUE grid=(2048,1,1),  block=(2048,1,1)
     # #   grid=(2048,1,1),  block=(2048,1,1) //block=(2048,1,1)
     # #       2048>maxThreadsPerBlock    
-    # s[OUT].bind(OUT.op.axis[0], block_x)
-    # s[OUT].bind(OUT.op.axis[1], thread_x)
+    # s[OUT].bind(OUT.op.axis[0], te.thread_axis("blockIdx.x"))
+    # s[OUT].bind(OUT.op.axis[1], te.thread_axis("threadIdx.x"))
 
     # opt2
     # average time cost of 10 runs = 799.699 ms, 21.4829 GFLOPS
-    s[OUT].bind(OUT.op.axis[0], block_x)
+    s[OUT].bind(OUT.op.axis[0], te.thread_axis("blockIdx.x"))
     bn, tn = s[OUT].split(OUT.op.axis[1], factor=2)
-    s[OUT].bind(bn, thread_x)
+    s[OUT].bind(bn, te.thread_axis("threadIdx.x"))
+
+    mod = tvm.lower(s, [LHS, RHS, OUT], simple_mode=True, name="gemm")
+    print(mod.astext(show_meta_data=False))
 
     # correctness
     def check_device(device):

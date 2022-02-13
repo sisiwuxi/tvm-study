@@ -80,6 +80,9 @@ def test_gemm():
     # (8.763-6.15468)/6.15468 = 42.38% speedup
     s[OUT].bind(mo, block_x)
     s[OUT].bind(no, thread_x)
+    
+    mod = tvm.lower(s, [LHS, RHS, OUT], simple_mode=True, name="gemm")
+    print(mod.astext(show_meta_data=False))
 
     # correctness
     def check_device(device):
