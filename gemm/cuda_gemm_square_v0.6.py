@@ -70,23 +70,30 @@ def test_gemm():
     # grid[4,4,1] thread[32,32,1]
     scale = 32
     num_thread = 4
+    vthread = 2
     block_factor = scale*num_thread
 
     m, n = OUT.op.axis
-    
+
     # bm=8, tm=128
     bm, tm = s[OUT].split(m, factor=block_factor)
     # bn=8, tm=32, mi=4
     tm, mi = s[OUT].split(tm, factor=num_thread)
+    # bn=8, tm=32, vm=2, mi=2
+    vm, mi = s[OUT].split(mi, factor=vthread)
     # bn=8, tn=128
     bn, tn = s[OUT].split(n, factor=block_factor)
     # bn=8, tn=32, ni=4
     tn, ni = s[OUT].split(tn, factor=num_thread)
+    # bn=8, tn=32, vn=2, ni=2
+    vn, ni = s[OUT].split(ni, factor=vthread)
 
     s[OUT].bind(bm, te.thread_axis("blockIdx.x"))
     s[OUT].bind(bn, te.thread_axis("blockIdx.y"))
     s[OUT].bind(tm, te.thread_axis("threadIdx.x"))
     s[OUT].bind(tn, te.thread_axis("threadIdx.y"))
+    s[OUT].bind(vm, te.thread_axis("vthread"))
+    s[OUT].bind(vm, te.thread_axis("vthread"))
     # average time cost of 10 runs = 562.47 ms, 3.81795 GFLOPS.
     s[OUT].reorder(bm, bn, tm, tn, mi, ni)
     s[OUT_L].compute_at(s[OUT], tn)
@@ -99,13 +106,29 @@ def test_gemm():
     # average time cost of 10 runs = 471.304 ms, 4.55648 GFLOPS.
     # s[OUT_L].compute_at(s[OUT], ni)
 
-    s[LHS_S].compute_at(s[OUT_L], k) 
-    s[RHS_S].compute_at(s[OUT_L], k)
-    s[LHS_L].compute_at(s[OUT_L], k)
-    s[RHS_L].compute_at(s[OUT_L], k)
+    m, n = OUT_L.op.axis
+    tk, ki = s[OUT_L].split(k, factor=scale)
+    bk, ki = s[OUT_L].split(ki, factor=1)
+    # s[OUT_L].reorder(tk, bk, ki, m, n)
+    s[LHS_S].compute_at(s[OUT_L], tk)
+    s[RHS_S].compute_at(s[OUT_L], tk)    
+    s[LHS_L].compute_at(s[OUT_L], bk)
+    s[RHS_L].compute_at(s[OUT_L], bk)
+    
+    m, k = LHS_S.op.axis
+    tm, mi = s[LHS_S].split(m, nparts=scale)
+    tk, ki = s[LHS_S].split(k, nparts=scale)
+    s[LHS_S].bind(tm, te.thread_axis("threadIdx.y"))
+    s[LHS_S].bind(tk, te.thread_axis("threadIdx.x"))
+
+    k, n = RHS_S.op.axis
+    tk, ki = s[RHS_S].split(k, nparts=scale)
+    tn, ni = s[RHS_S].split(n, nparts=scale)
+    s[RHS_S].bind(tk, te.thread_axis("threadIdx.y"))
+    s[RHS_S].bind(tn, te.thread_axis("threadIdx.x"))
+
     # pdb.set_trace()
     # print(tvm.lower(s, [LHS, RHS, OUT], simple_mode=True))
-
     mod = tvm.lower(s, [LHS, RHS, OUT], simple_mode=True, name="gemm")
     print(mod.astext(show_meta_data=False))
 

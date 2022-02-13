@@ -73,7 +73,7 @@ def test_gemm():
     block_factor = scale*num_thread
 
     m, n = OUT.op.axis
-    
+
     # bm=8, tm=128
     bm, tm = s[OUT].split(m, factor=block_factor)
     # bn=8, tm=32, mi=4
@@ -99,13 +99,30 @@ def test_gemm():
     # average time cost of 10 runs = 471.304 ms, 4.55648 GFLOPS.
     # s[OUT_L].compute_at(s[OUT], ni)
 
+    # average time cost of 10 runs = 3029.8 ms, 0.708787 GFLOPS.
     s[LHS_S].compute_at(s[OUT_L], k) 
     s[RHS_S].compute_at(s[OUT_L], k)
     s[LHS_L].compute_at(s[OUT_L], k)
     s[RHS_L].compute_at(s[OUT_L], k)
+
+    
+    m, k = LHS_S.op.axis
+    tm, mi = s[LHS_S].split(m, nparts=scale)
+    # tm=32, mi=4
+    # # average time cost of 10 runs = 1912.98 ms, 1.12259 GFLOPS.
+    # s[LHS_S].bind(tm, te.thread_axis("threadIdx.x"))
+    # average time cost of 10 runs = 1612.01 ms, 1.33217 GFLOPS.
+    s[LHS_S].bind(tm, te.thread_axis("threadIdx.y"))
+    
+    k, n = RHS_S.op.axis
+    tn, ni = s[RHS_S].split(n, nparts=scale)
+    # # average time cost of 10 runs = 567.633 ms, 3.78322 GFLOPS.
+    # s[RHS_S].bind(tn, te.thread_axis("threadIdx.y"))
+    # average time cost of 10 runs = 364.722 ms, 5.88799 GFLOPS.
+    s[RHS_S].bind(tn, te.thread_axis("threadIdx.x"))
+
     # pdb.set_trace()
     # print(tvm.lower(s, [LHS, RHS, OUT], simple_mode=True))
-
     mod = tvm.lower(s, [LHS, RHS, OUT], simple_mode=True, name="gemm")
     print(mod.astext(show_meta_data=False))
 
