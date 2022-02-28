@@ -142,6 +142,10 @@ def test_gemm():
 
         f = tvm.build(s, [LHS, RHS, OUT], target=device, name="gemm")
         # print("source code:\n", f.get_source())
+        dev_module = f.imported_modules[0]
+        print("-----GPU code-----")
+        print(dev_module.get_source())
+
         # launch the kernel.
         m, n, k = M, N, K
         lhs_np = np.random.uniform(size=(m, k)).astype(LHS.dtype)
