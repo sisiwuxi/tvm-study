@@ -22,6 +22,7 @@ from tvm.contrib import nvcc
 import numpy as np
 import tvm.testing
 import pdb
+from tvm.contrib import tedd
 
 TASK = "dense"
 USE_MANUAL_CODE = False
@@ -140,7 +141,7 @@ def test_dense():
     s[AS].bind(ty, thread_y) # ty = 1, thread_y."thread_extent" = 1
     s[AS].bind(tx, thread_x) # tx = 64, thread_x."thread_extent" = 1
     s[AS].vectorize(vi)
-    pdb.set_trace()
+    # pdb.set_trace()
     # schedule for B's shared memory load
     s[BS].compute_at(s[CF], ko) # ko, ki = 128, 1
     sn, sk = s[BS].op.axis # sn, sk = 16, 16
@@ -158,6 +159,12 @@ def test_dense():
     # print(tvm.lower(s, [A, B, C], simple_mode=True))
     mod = tvm.lower(s, [A, B, C], simple_mode=True, name="dense")
     print(mod.astext(show_meta_data=False))
+    # # Tensor Expression Debug Display (TEDD)
+    tedd.viz_dataflow_graph(s, dot_file_path="/tmp/dfg.dot")
+    tedd.viz_schedule_tree(s, dot_file_path="/tmp/scheduletree.dot")
+    s = s.normalize()
+    tedd.viz_schedule_tree(s, dot_file_path="/tmp/scheduletree2.dot")
+    tedd.viz_itervar_relationship_graph(s, dot_file_path="/tmp/itervar.dot")
 
 
 
