@@ -1,0 +1,1 @@
+add_executable(matadd matadd.cu)

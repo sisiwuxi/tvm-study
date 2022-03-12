@@ -57,26 +57,41 @@ double cpuSecond()
   struct timeval tp;
   gettimeofday(&tp,NULL);
   return((double)tp.tv_sec+(double)tp.tv_usec*1e-6);
-
 }
-void initialData(float* ip,int size)
+
+void initialData(float* vector,int size)
 {
   time_t t;
   srand((unsigned )time(&t));
   for(int i=0;i<size;i++)
   {
-    ip[i]=(float)(rand()&0xffff)/1000.0f;
+    vector[i]=(float)(rand()&0xffff)/1000.0f;
   }
 }
-void initialData_int(int* ip, int size)
+
+void initialData_int(int* vector, int size)
 {
 	time_t t;
 	srand((unsigned)time(&t));
 	for (int i = 0; i<size; i++)
 	{
-		ip[i] = int(rand()&0xff);
+		vector[i] = int(rand()&0xff);
 	}
 }
+
+void initialMatrix(float* array, int row, int column)
+{
+  time_t t;
+  srand((unsigned )time(&t));
+  for(int i=0; i<row; i++)
+  {
+    for(int j=0; j<column; j++)
+    {
+      array[i*column + j]=(float)(rand()&0xffff)/1000.0f;
+    }
+  }
+}
+
 void printMatrix(float * C,const int nx,const int ny)
 {
   float *ic=C;

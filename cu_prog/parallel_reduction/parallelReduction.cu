@@ -200,9 +200,9 @@ int main(int argc,char** argv)
 	CHECK(cudaDeviceSynchronize());
 	iStart = cpuSecond();
 	warmup <<<grid, block >>>(idata_dev, odata_dev, size);
-	cudaDeviceSynchronize();
+	CHECK(cudaDeviceSynchronize());
 	iElaps = cpuSecond() - iStart;
-	cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+	CHECK(cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost));
 	gpu_sum = 0;
 	for (int i = 0; i < grid.x; i++)
 		gpu_sum += odata_host[i];
@@ -217,7 +217,7 @@ int main(int argc,char** argv)
 	reduceNeighbored << <grid, block >> >(idata_dev, odata_dev, size);
 	cudaDeviceSynchronize();
 	iElaps = cpuSecond() - iStart;
-	cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+	CHECK(cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost));
 	gpu_sum = 0;
 	for (int i = 0; i < grid.x; i++)
 		gpu_sum += odata_host[i];
@@ -232,7 +232,7 @@ int main(int argc,char** argv)
 	reduceNeighboredLess <<<grid, block>>>(idata_dev, odata_dev, size);
 	cudaDeviceSynchronize();
 	iElaps = cpuSecond() - iStart;
-	cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+	CHECK(cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost));
 	gpu_sum = 0;
 	for (int i = 0; i < grid.x; i++)
 		gpu_sum += odata_host[i];
@@ -246,7 +246,7 @@ int main(int argc,char** argv)
 	reduceInterleaved << <grid, block >> >(idata_dev, odata_dev, size);
 	cudaDeviceSynchronize();
 	iElaps = cpuSecond() - iStart;
-	cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+	CHECK(cudaMemcpy(odata_host, odata_dev, grid.x * sizeof(int), cudaMemcpyDeviceToHost));
 	gpu_sum = 0;
 	for (int i = 0; i < grid.x; i++)
 		gpu_sum += odata_host[i];
