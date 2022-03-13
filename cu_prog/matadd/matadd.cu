@@ -20,7 +20,6 @@ __global__ void MatAdd(float *A, float *B, float *C, int row, int column)
     {
 		C[i*column + j] = A[i*column + j] + B[i*column + j];
     }
-
 }
 
 void matAddCPU(float *A, float *B, float *C, int row, int column)
@@ -73,7 +72,7 @@ int main(void)
 	// //cuda memory copy from device to host
 	CHECK(cudaMemcpy(h_c,d_c,ROW*COLUMN*sizeof(float),cudaMemcpyDeviceToHost));
 
-    checkResult(h_from_d,h_c,ROW*COLUMN);
+    checkResult(h_c,h_from_d,ROW*COLUMN);
 
 	free(h_a);
 	free(h_b);

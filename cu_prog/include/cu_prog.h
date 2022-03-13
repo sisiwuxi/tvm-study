@@ -123,9 +123,28 @@ void checkResult(float * hostRef,float * gpuRef,const int N)
   {
     if(abs(hostRef[i]-gpuRef[i])>epsilon)
     {
-      printf("Results don\'t match!\n");
+      printf("checkResult don\'t match!\n");
       printf("%f(hostRef[%d] )!= %f(gpuRef[%d])\n",hostRef[i],i,gpuRef[i],i);
       return;
+    }
+  }
+  printf("Check result success!\n");
+}
+void checkMatrixResult(float * hostRef,float * gpuRef,const int nx,const int ny)
+{
+  double epsilon=1.0E-8;
+  for(int i=0;i<nx;i++)
+  {
+    float *row_a = (float*)((char*)hostRef + i*ny);
+    float *row_b = (float*)((char*)gpuRef + i*ny);
+    for(int j=0;j<ny;j++)
+    {
+      if(abs(row_a[j]-row_b[j])>epsilon)
+      {
+        printf("checkMatrixResult don\'t match!\n");
+        printf("%f(hostRef[%d,%d] )!= %f(gpuRef[%d,%d])\n",row_b[j],i,j,row_b[j],i,j);
+        return;
+      }
     }
   }
   printf("Check result success!\n");

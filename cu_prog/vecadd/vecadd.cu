@@ -72,7 +72,7 @@ int main(void)
 	//cuda memory copy from device to host
 	CHECK(cudaMemcpy(h_c,c_dev,SIZE*sizeof(float),cudaMemcpyDeviceToHost));
 
-    checkResult(h_from_d,h_c,SIZE);
+    checkResult(h_c,h_from_d,SIZE);
 
 	free(h_a);
 	free(h_b);
