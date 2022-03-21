@@ -5,9 +5,9 @@ This script demonstrate how to access the eval metrics
 import os
 import xgboost as xgb
 
-CURRENT_DIR = os.path.dirname(__file__)
-dtrain = xgb.DMatrix(os.path.join(CURRENT_DIR, '../data/agaricus.txt.train'))
-dtest = xgb.DMatrix(os.path.join(CURRENT_DIR, '../data/agaricus.txt.test'))
+CURRENT_DIR = os.getcwd()
+dtrain = xgb.DMatrix(os.path.join(CURRENT_DIR, './data/agaricus.txt.train'))
+dtest = xgb.DMatrix(os.path.join(CURRENT_DIR, './data/agaricus.txt.test'))
 
 param = [('max_depth', 2), ('objective', 'binary:logistic'), ('eval_metric', 'logloss'), ('eval_metric', 'error')]
 

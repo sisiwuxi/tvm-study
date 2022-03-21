@@ -2,8 +2,12 @@ import os
 import xgboost as xgb
 
 def save_all_tree(bst, best_index, n_estimators):
+    print("save_all_tree:", best_index, n_estimators)
+    if best_index > n_estimators:
+        print("save_all_tree error best_index > n_estimators", best_index, n_estimators)
+        return
     # import pdb;pdb.set_trace()
-    bst.save_model('0001.model')
+    # bst.save_model('0001.model')
     
     dot_data = xgb.to_graphviz(bst, num_trees=best_index)
     dot_data.save("./best.dot")

@@ -17,9 +17,9 @@ def main(args):
     kRows = 1000
     kCols = 10
 
-    X = rng.randn(kRows, kCols)
-    y = rng.randn(kRows)
-    fw = np.ones(shape=(kCols,))
+    X = rng.randn(kRows, kCols) #[1000,10]
+    y = rng.randn(kRows) # [1000,]
+    fw = np.ones(shape=(kCols,)) # [10,]
     for i in range(kCols):
         fw[i] *= float(i)
 
@@ -30,6 +30,7 @@ def main(args):
                          'colsample_bynode': 0.5},
                         dtrain, num_boost_round=10,
                         evals=[(dtrain, 'd')])
+    import pdb;pdb.set_trace()
     feature_map = bst.get_fscore()
     # feature zero has 0 weight
     assert feature_map.get('f0', None) is None
@@ -37,7 +38,8 @@ def main(args):
 
     if args.plot:
         xgboost.plot_importance(bst)
-        plt.show()
+        # plt.show()
+        plt.savefig("feature_weights.png")
 
 
 if __name__ == '__main__':

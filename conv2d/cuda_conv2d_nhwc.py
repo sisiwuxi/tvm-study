@@ -80,8 +80,8 @@ def test_conv2d_nhwc_hwio():
 
     block_factor_c = tile_c * num_thread_c * vthread_c # 2*8*8=128
     offset = 8
-    A_align = step + offset
-    W_align = block_factor_c + offset
+    A_align = step + offset # 3+8 = 11
+    W_align = block_factor_c + offset # 128+8=136
 
     # Algorithm
     # layout == "NHWC":
@@ -115,6 +115,7 @@ def test_conv2d_nhwc_hwio():
     # Memory Hierarchy
     # Designate the memory hierarchy
     s[Apad].compute_inline()  # compute Apad inline
+    # s[W].compute_inline()
     BL = s.cache_write(B, "local")
     AA = s.cache_read(Apad, "shared", [BL])
     WW = s.cache_read(W, "shared", [BL])
@@ -133,63 +134,66 @@ def test_conv2d_nhwc_hwio():
 
     # schedule for output
     n,ho,wo,co = s[B].op.axis # n,ho,wo,co = 128,112,112,64
-    bx = wo
     # co
     co,vec = s[B].split(co, factor = vec_factor) # co,vec = 32,2
     s[B].vectorize(vec)
     tx,co = s[B].split(co, factor=tile_c) # tx,co = 16,2
-    txz,tx = s[B].split(tx, factor=num_thread_c) # txz,tx = 2,8
-    bz,txz = s[B].split(txz, factor=vthread_c) # bz,txz = 1,2
+    txz,tx = s[B].split(tx, factor=num_thread_c) # txz,tx = 2,8; num_thread_c=8
+    bz,txz = s[B].split(txz, factor=vthread_c) # bz,txz = 1,2; vthread_c=8
+    
     # n
     ty,n = s[B].split(n, factor=tile_n) # ty,n = 64,2
-    tyz,ty = s[B].split(ty, factor=num_thread_n) # tyz,ty = 8,8
-    by,tyz = s[B].split(tyz, factor=vthread_n) # by,tyz = 4,2
+    tyz,ty = s[B].split(ty, factor=num_thread_n) # tyz,ty = 8,8; num_thread_n=8
+    by,tyz = s[B].split(tyz, factor=vthread_n) # by,tyz = 2,4; vthread_n=4
 
-    s[B].reorder(bx,by,bz,tyz,ho,txz,ty,tx,n,co,vec) # 112,4,1,2,112,2,8,8,2,2,2
+    s[B].reorder(wo,by,bz,tyz,ho,txz,ty,tx,n,co,vec) # 112,4,1,2,112,2,8,8,2,2,2
     # s[B].reorder(wo,ho,by,bz,tyz,txz,ty,tx,n,co,vec) # 112,112,4,1,2,2,8,8,2,2,2
     
-    s[B].bind(bz, block_z) # 1 bz,txz,tx,co = 1,2,8,2
-    s[B].bind(by, block_y) # 4 by,tyz,ty,n = 4,2,8,2
-    s[B].bind(bx, block_x) # 112 wo
+    # s[B].bind(bz, block_z) # 1 bz,txz,tx,co = 1,2,8,2
+    # s[B].bind(c, block_y) # 4 by,tyz,ty,n = 4,2,8,2
+    # s[B].bind(wo, block_x) # 112 wo
+    s[B].bind(by, block_z) # 4 by,tyz,ty,n = 2,4,8,2
+    s[B].bind(ho, block_y) # 112 wo
+    s[B].bind(wo, block_x) # 112 wo
 
-    s[B].bind(tyz, thread_yz) # 2,2 by,tyz,ty,n = 4,2,8,2
-    s[B].bind(txz, thread_xz) # 2,8 bz,txz,tx,co = 1,2,8,2
-
+    s[B].bind(tyz, thread_yz) # 2,2 by,tyz,ty,n = 4,2,8,2; vthread_n=2
+    s[B].bind(txz, thread_xz) # 2,8 bz,txz,tx,co = 1,2,8,2; vthread_c=8
     s[B].bind(ty, thread_y) # 8,8 by,tyz,ty,n = 4,2,8,2
     s[B].bind(tx, thread_x) # 8,8 bz,txz,tx,co = 1,2,8,2
 
     # # schedule local computation
-    # s[BL].compute_at(s[B], tx)
-    # n,ho,wo,co = s[BL].op.axis # n,ho,wo,co = 128,112,112,64
-    # rh,rw,rc = s[BL].op.reduce_axis # rh,rw,rc = 7,7,3
-    # rco,rci = s[BL].split(rc,factor=step)
-    # s[BL].vectorize(co)
-    # s[BL].reorder(rco,rh,rw,rci,n,co)
-    # s[AA].compute_at(s[BL], rh)
-    # s[WW].compute_at(s[BL], rh)
-    # s[AL].compute_at(s[BL], rci)
-    # s[WL].compute_at(s[BL], rci)
+    s[BL].compute_at(s[B], tx)
+    n,ho,wo,co = s[BL].op.axis # n,ho,wo,co = 2,112,1,2
+    rh,rw,rc = s[BL].op.reduce_axis # rh,rw,rc = 7,7,3
+    rco,rci = s[BL].split(rc,factor=step) # rco,rci = 1,3
+    s[BL].vectorize(co) # 4 ???
+    s[BL].reorder(rco,rh,rw,rci,n,co) # 1,7,7,3,2,4
+    s[AA].compute_at(s[BL], rw)
+    s[WW].compute_at(s[BL], rw)
+    s[AL].compute_at(s[BL], rci)
+    s[WL].compute_at(s[BL], rci)
 
     # # schedule for data's share memory
-    # n,hi,wi,ci = s[AA].op.axis
-    # s[AA].reorder(hi,wi,n,ci)
-    # s[AA].storage_align(wi, A_align-1, A_align)
-    # t = s[AA].fuse(n,ci)
-    # ty,tx = s[AA].split(t, factor=num_thread_c)
-    # _,ty = s[AA].split(t, factor=num_thread_n)
-    # s[AA].bind(tx, thread_x)
-    # s[AA].bind(ty, thread_y)
+    n,hi,wi,ci = s[AA].op.axis # n,hi,wi,ci=128,229,229,3
+    s[AA].reorder(hi,wi,n,ci) # 229,229,128,3
+    s[AA].storage_align(wi, A_align-1, A_align) # wi=229,A_align=11
+    t = s[AA].fuse(n,ci) # t=n*ci=32*3=96
+    ty,tx = s[AA].split(t, factor=num_thread_c) # num_thread_c=8, ty,tx = 12,8
+    tz,ty = s[AA].split(ty, factor=num_thread_n) # num_thread_n=8, tz,ty = 12/8,8
+    s[AA].bind(tx, thread_x) # num_thread_c=8, tx=8
+    s[AA].bind(ty, thread_y) # num_thread_n=8, ty=8
 
-    # # schedule for kernel's share memory
-    # r,s,ci,co = s[WW].op.axis
-    # t = s[WW].fuse(ci,co)
-    # s[WW].storage_align(ci, W_align-1, W_align)
-    # t,vec = s[WW].split(t, factor=num_thread_c)
-    # s[WW].vectorize(vec)
-    # ty,tx = s[WW].split(t, factor=num_thread_c)
-    # _,ty = s[WW].split(ty, factor=num_thread_n)
-    # s[WW].bind(tx, thread_x)
-    # s[WW].bind(ty, thread_y)
+    # schedule for kernel's share memory
+    wr,ws,wci,wco = s[WW].op.axis # wr,ws,wci,wco=7,7,3,64
+    # import pdb;pdb.set_trace()
+    s[WW].storage_align(wci, W_align-1, W_align) # wci=3,W_align=136
+    t = s[WW].fuse(wci,wco) # t=wci*wco=3*64=192
+    t,vec = s[WW].split(t, factor=num_thread_c)# num_thread_c=8, t,vec = 24,8
+    s[WW].vectorize(vec) # vec=8
+    ty,tx = s[WW].split(t, factor=num_thread_c) # num_thread_c=8, ty,tx = 3,8
+    tz,ty = s[WW].split(ty, factor=num_thread_n) # num_thread_n=8, tz,ty = 3/8,8
+    s[WW].bind(tx, thread_x)
+    s[WW].bind(ty, thread_y)
 
 
     mod = tvm.lower(s, [A, W, B], simple_mode=True, name="conv2d")

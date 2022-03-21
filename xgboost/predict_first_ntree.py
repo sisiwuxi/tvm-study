@@ -7,10 +7,9 @@ import numpy as np
 import xgboost as xgb
 from sklearn.datasets import load_svmlight_file
 
-CURRENT_DIR = os.path.dirname(__file__)
-train = os.path.join(CURRENT_DIR, "../data/agaricus.txt.train")
-test = os.path.join(CURRENT_DIR, "../data/agaricus.txt.test")
-
+CURRENT_DIR = os.getcwd()
+train = os.path.join(CURRENT_DIR, './data/agaricus.txt.train')
+test = os.path.join(CURRENT_DIR, './data/agaricus.txt.test')
 
 def native_interface():
     # load data in do training
