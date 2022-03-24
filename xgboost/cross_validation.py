@@ -7,8 +7,9 @@ import numpy as np
 import xgboost as xgb
 
 # load data in do training
-CURRENT_DIR = os.path.dirname(__file__)
-dtrain = xgb.DMatrix(os.path.join(CURRENT_DIR, '../data/agaricus.txt.train'))
+
+CURRENT_DIR = os.getcwd()
+dtrain = xgb.DMatrix(os.path.join(CURRENT_DIR, './data/agaricus.txt.train'))
 param = {'max_depth':2, 'eta':1, 'objective':'binary:logistic'}
 num_round = 2
 

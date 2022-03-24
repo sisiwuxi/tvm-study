@@ -1,1 +1,6 @@
 add_executable(cudaMallocPitch cudaMallocPitch.cu)
+add_executable(3_2_2_cudaMemcpy2D 3_2_2_cudaMemcpy2D.cu)
+add_executable(3_2_2_cudaMemcpy3D 3_2_2_cudaMemcpy3D.cu)
+# add_executable(3_2_3 3_2_3.cu)
+add_executable(3_2_4_MatMul_1 3_2_4_MatMul_1.cu)
+add_executable(3_2_4_MatMul_2 3_2_4_MatMul_2.cu)

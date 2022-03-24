@@ -20,7 +20,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 from typing import Tuple
-
+from sklearn import preprocessing
 
 def make_categorical(
     n_samples: int, n_features: int, n_categories: int, onehot: bool
@@ -47,6 +47,10 @@ def make_categorical(
 
     if onehot:
         return pd.get_dummies(df), label
+    # lbl = preprocessing.LabelEncoder()
+    # df = lbl.fit_transform(df.astype('int'))
+    # df = lbl.fit_transform(df.astype('int'))
+    df = df.astype("int")
     return df, label
 
 
@@ -55,18 +59,20 @@ def main() -> None:
     # For scikit-learn interface, the input data must be pandas DataFrame or cudf
     # DataFrame with categorical features
     X, y = make_categorical(100, 10, 4, False)
+    # X.shape(100, 10), y.shape(100,)
     # Specify `enable_categorical` to True, also we use onehot encoding based split
     # here for demonstration. For details see the document of `max_cat_to_onehot`.
     reg = xgb.XGBRegressor(
         tree_method="gpu_hist", enable_categorical=True, max_cat_to_onehot=5
     )
     reg.fit(X, y, eval_set=[(X, y)])
-
+    # xgboost.core.XGBoostError: [20:03:12] ../src/gbm/gbtree.cc:548: Check failed: common::AllVisibleGPUs() >= 1 (0 vs. 1) : No visible GPU is found for XGBoost.
+    # The problem was indeed the GPU driver from the Debian repository. Installing CUDA toolkit 11.2 from NVIDIA website fixed the problem for me.
+    # cat /usr/local/cuda/version.txt CUDA Version 9.0.176
     # Pass in already encoded data
     X_enc, y_enc = make_categorical(100, 10, 4, True)
     reg_enc = xgb.XGBRegressor(tree_method="gpu_hist")
     reg_enc.fit(X_enc, y_enc, eval_set=[(X_enc, y_enc)])
-
     reg_results = np.array(reg.evals_result()["validation_0"]["rmse"])
     reg_enc_results = np.array(reg_enc.evals_result()["validation_0"]["rmse"])
 

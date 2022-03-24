@@ -1,0 +1,4 @@
+add_executable(3_2_12_texture 3_2_12_texture.cu)
+add_executable(3_2_12_texture2D 3_2_12_texture2D.cu)
+add_executable(3_2_12_surface 3_2_12_surface.cu)
+add_executable(3_2_12_surface2D 3_2_12_surface2D.cu)

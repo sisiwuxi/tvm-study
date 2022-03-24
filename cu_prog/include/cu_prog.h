@@ -65,7 +65,8 @@ void initialData(float* vector,int size)
   srand((unsigned )time(&t));
   for(int i=0;i<size;i++)
   {
-    vector[i]=(float)(rand()&0xffff)/1000.0f;
+    // vector[i]=(float)(rand()&0xffff)/1000.0f;
+    vector[i]=(float)(rand()&0xffff)/10000.0f;
   }
 }
 
@@ -94,15 +95,29 @@ void initialMatrix(float* array, int row, int column)
 
 void printMatrix(float * C,const int nx,const int ny)
 {
-  float *ic=C;
-  printf("Matrix<%d,%d>:",ny,nx);
-  for(int i=0;i<ny;i++)
+  printf("\nMatrix<%d,%d>:\n",nx,ny);
+  for(int i=0;i<nx;i++)
   {
-    for(int j=0;j<nx;j++)
+    for(int j=0;j<ny;j++)
     {
-      printf("%6f ",C[j]);
+      // printf("%6f ",C[j]);
+      printf("%2.2f ",C[i*nx + j]);
     }
-    ic+=nx;
+    printf("\n");
+  }
+}
+
+void printSurface(unsigned char * C, const int nx, const int ny, const int nz) {
+  printf("\nSurface<%d,%d,%d>:\n",nx,ny,nz);
+  for(int i=0;i<nx;i++)
+  {
+    for(int j=0;j<ny;j++)
+    {
+      for(int z=0;z<nz;z++)
+      {
+        printf("%d ",C[i*ny*nz + j*nz + z]);
+      }
+    }
     printf("\n");
   }
 }
@@ -130,9 +145,10 @@ void checkResult(float * hostRef,float * gpuRef,const int N)
   }
   printf("Check result success!\n");
 }
-void checkMatrixResult(float * hostRef,float * gpuRef,const int nx,const int ny)
+bool checkMatrixResult(float * hostRef,float * gpuRef,const int nx,const int ny)
 {
-  double epsilon=1.0E-8;
+  // double epsilon=1.0E-8;
+  double epsilon=1.0E-5;
   for(int i=0;i<nx;i++)
   {
     float *row_a = (float*)((char*)hostRef + i*ny);
@@ -142,11 +158,13 @@ void checkMatrixResult(float * hostRef,float * gpuRef,const int nx,const int ny)
       if(abs(row_a[j]-row_b[j])>epsilon)
       {
         printf("checkMatrixResult don\'t match!\n");
-        printf("%f(hostRef[%d,%d] )!= %f(gpuRef[%d,%d])\n",row_b[j],i,j,row_b[j],i,j);
-        return;
+        printf("%f(hostRef[%d,%d] )!= %f(gpuRef[%d,%d])\n",row_a[j],i,j,row_b[j],i,j);
+        return false;
       }
     }
   }
   printf("Check result success!\n");
+  return true;
 }
+
 #endif//FRESHMAN_H

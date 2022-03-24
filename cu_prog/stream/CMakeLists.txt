@@ -1,0 +1,1 @@
+add_executable(3_2_6_stream 3_2_6_stream.cu)
