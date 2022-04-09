@@ -291,10 +291,10 @@ class DenseKernel():
         return res
 
     # =============================================================== #
-    #                       1. step1_0
+    #                       1. step1_0_1
     # =============================================================== #
-    def step1_0(self, param):
-        print('code: step1_0')
+    def step1_0_1(self, param):
+        print('code: step1_0_1')
         mem = MEM()
         shape, lhs, rhs, res, block_loop, block, wmma, vec = param
         M_ori, N_ori, K_ori = shape
@@ -364,39 +364,49 @@ class DenseKernel():
                     #     right = (m_n_fused//N)*N + (m_n_fused%N)
                     #     T[left] = T_local_shared[right]
 
-                    # C_o_o_o = (M*N)//block[0]
+                    # C_o_o_o = (M*N)//vec
                     # for m_n_fused_o in range(C_o_o_o):
-                    #     for m_n_fused_i in range(block[0]):
-                    #         left = blockIdx_y*M*N_ori + ((m_n_fused_o*block[0] + m_n_fused_i)//N)*N_ori + blockIdx_x*N + ((m_n_fused_o*block[0] + m_n_fused_i)%N)
-                    #         right = ((m_n_fused_o*block[0] + m_n_fused_i)//N)*N + ((m_n_fused_o*block[0] + m_n_fused_i)%N)
+                    #     for m_n_fused_i in range(vec):
+                    #         left = blockIdx_y*M*N_ori + ((m_n_fused_o*vec + m_n_fused_i)//N)*N_ori + blockIdx_x*N + ((m_n_fused_o*vec + m_n_fused_i)%N)
+                    #         right = ((m_n_fused_o*bvec + m_n_fused_i)//N)*N + ((m_n_fused_o*vec + m_n_fused_i)%N)
                     #         T[left] = T_local_shared[right]
 
-                    # C_o_o_o = (M*N)//block[0]//block[1]
+                    # C_o_o_o = (M*N)//vec//block[0]
                     # for m_n_fused_o_o in range(C_o_o_o):
-                    #     for m_n_fused_o_i in range(block[1]):
-                    #         for m_n_fused_i in range(block[0]):
-                    #             left = blockIdx_y*M*N_ori + (((m_n_fused_o_o*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)//N)*N_ori + blockIdx_x*N + (((m_n_fused_o_o*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)%N)
-                    #             right = (((m_n_fused_o_o*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)//N)*N + (((m_n_fused_o_o*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)%N)
+                    #     for m_n_fused_o_i in range(block[0]):
+                    #         for m_n_fused_i in range(vec):
+                    #             left = blockIdx_y*M*N_ori + (((m_n_fused_o_o*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N_ori + blockIdx_x*N + (((m_n_fused_o_o*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
+                    #             right = (((m_n_fused_o_o*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N + (((m_n_fused_o_o*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
                     #             T[left] = T_local_shared[right]
 
-                    C_o_o_o = (M*N)//block[0]//block[1]//block[2]
-                    for m_n_fused_o_o_o in range(C_o_o_o):
-                        for m_n_fused_o_o_i in range(block[2]):
-                            for m_n_fused_o_i in range(block[1]):
-                                for m_n_fused_i in range(block[0]):
-                                    left = blockIdx_y*M*N_ori + ((((m_n_fused_o_o_o*block[2] + m_n_fused_o_o_i)*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)//N)*N_ori + blockIdx_x*N + ((((m_n_fused_o_o_o*block[2] + m_n_fused_o_o_i)*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)%N)
-                                    right = ((((m_n_fused_o_o_o*block[2] + m_n_fused_o_o_i)*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)//N)*N + ((((m_n_fused_o_o_o*block[2] + m_n_fused_o_o_i)*block[1] + m_n_fused_o_i)*block[0] + m_n_fused_i)%N)
-                                    T[left] = T_local_shared[right]
+                    # C_o_o_o = (M*N)//vec//block[0]//block[1]
+                    # for m_n_fused_o_o_o in range(C_o_o_o):
+                    #     for m_n_fused_o_o_i in range(block[1]):
+                    #         for m_n_fused_o_i in range(block[0]):
+                    #             for m_n_fused_i in range(vec):
+                    #                 left = blockIdx_y*M*N_ori + ((((m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N_ori + blockIdx_x*N + ((((m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
+                    #                 right = ((((m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N + ((((m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
+                    #                 T[left] = T_local_shared[right]
+
+                    C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for m_n_fused_o_o_o_i in range(block[2]):
+                            for m_n_fused_o_o_i in range(block[1]):
+                                for m_n_fused_o_i in range(block[0]):
+                                    for m_n_fused_i in range(vec):
+                                        left = blockIdx_y*M*N_ori + (((((m_n_fused_o_o_o_o*block[2] + m_n_fused_o_o_o_i)*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N_ori + blockIdx_x*N + (((((m_n_fused_o_o_o_o*block[2] + m_n_fused_o_o_o_i)*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
+                                        right = (((((m_n_fused_o_o_o_o*block[2] + m_n_fused_o_o_o_i)*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)//N)*N + (((((m_n_fused_o_o_o_o*block[2] + m_n_fused_o_o_o_i)*block[1] + m_n_fused_o_o_i)*block[0] + m_n_fused_o_i)*vec + m_n_fused_i)%N)
+                                        T[left] = T_local_shared[right]
         res = np.reshape(T, (M_ori, N_ori))
         return res
 
     # =============================================================== #
-    #                       1. step1_1
+    #                       1. step1_0
     # =============================================================== #
-    def step1_1(self, param):
-        print('code: step1_1')
+    def step1_0(self, param):
+        print('code: step1_0')
         mem = MEM()
-        shape, lhs, rhs, res, block_loop, block, wmma = param
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
         M_ori, N_ori, K_ori = shape
         wmma_m = wmma[0] # 16
         wmma_n = wmma[1] # 16
@@ -420,9 +430,9 @@ class DenseKernel():
         # A_shared = mem.new((M*K), "zero")
         # B_shared = mem.new((N*K), "zero")
         # T_shared = mem.new((M*N), "zero")
-        for blockIdx_z in range(BLOCK_Z): # 1
-            for blockIdx_y in range(BLOCK_Y): # 2
-                for blockIdx_x in range(BLOCK_X): # 9
+        for blockIdx_z in range(BLOCK_Z):
+            for blockIdx_y in range(BLOCK_Y): # M
+                for blockIdx_x in range(BLOCK_X): # N
                     A_shared = mem.new((shape), "zero")
                     A_shared_local = mem.new((M*K), "zero")
                     B_shared_local = mem.new((N*K), "zero")
@@ -455,100 +465,75 @@ class DenseKernel():
                         for n in range(N):
                             T_local_shared[m*N + n] = T_local[m*N + n]
                     # out L2 -> HBM
-                    for threadIdx_z in range(block[2]): # 7
-                        for threadIdx_y in range(block[1]): # 4
-                            for threadIdx_x in range(block[0]): # 64
-                                C_o_o_o = (M*N)//block[0]//block[1]//block[2]
-                                for m_n_fused_o_o_o in range(C_o_o_o):
-                                    left = blockIdx_y*M*N_ori + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N_ori + blockIdx_x*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    right = ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    T[left] = T_local_shared[right]                                
+                    # C_o_o_o = (M*N)//vec
+                    # for m_n_fused_o in range(C_o_o_o):
+                    #     for m_n_fused_i in range(vec):
+                    #         m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                    #         left = blockIdx_y*M*N_ori + (m_n_fused//N)*N_ori + blockIdx_x*N + (m_n_fused%N)
+                    #         right = (m_n_fused//N)*N + (m_n_fused%N)
+                    #         T[left] = T_local_shared[right]
+
+                    # C_o_o_o = (M*N)//vec//block[0]
+                    # for m_n_fused_o_o in range(C_o_o_o):
+                    #     for m_n_fused_o_i in range(block[0]):
+                    #         for m_n_fused_i in range(vec):
+                    #             m_n_fused_o = m_n_fused_o_o*block[0] + m_n_fused_o_i
+                    #             m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                    #             left = blockIdx_y*M*N_ori + (m_n_fused//N)*N_ori + blockIdx_x*N + (m_n_fused%N)
+                    #             right = (m_n_fused//N)*N + (m_n_fused%N)
+                    #             T[left] = T_local_shared[right]
+
+                    # C_o_o_o = (M*N)//vec//block[0]//block[1]
+                    # for m_n_fused_o_o_o in range(C_o_o_o):
+                    #     for m_n_fused_o_o_i in range(block[1]):
+                    #         for m_n_fused_o_i in range(block[0]):
+                    #             for m_n_fused_i in range(vec):
+                    #                 m_n_fused_o_o = m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i
+                    #                 m_n_fused_o = m_n_fused_o_o*block[0] + m_n_fused_o_i
+                    #                 m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                    #                 left = blockIdx_y*M*N_ori + (m_n_fused//N)*N_ori + blockIdx_x*N + (m_n_fused%N)
+                    #                 right = (m_n_fused//N)*N + (m_n_fused%N)
+                    #                 T[left] = T_local_shared[right]
+                    C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for m_n_fused_o_o_o_i in range(block[2]):
+                            for m_n_fused_o_o_i in range(block[1]):
+                                for m_n_fused_o_i in range(block[0]):
+                                    for m_n_fused_i in range(vec):
+                                        m_n_fused_o_o_o = m_n_fused_o_o_o_o*block[2] + m_n_fused_o_o_o_i
+                                        m_n_fused_o_o = m_n_fused_o_o_o*block[1] + m_n_fused_o_o_i
+                                        m_n_fused_o = m_n_fused_o_o*block[0] + m_n_fused_o_i
+                                        m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                                        left = blockIdx_y*M*N_ori + (m_n_fused//N)*N_ori + blockIdx_x*N + (m_n_fused%N)
+                                        right = (m_n_fused//N)*N + (m_n_fused%N)
+                                        T[left] = T_local_shared[right]
         res = np.reshape(T, (M_ori, N_ori))
         return res
 
-    # =============================================================== #
-    #                       1. step1_2
-    # =============================================================== #
-    def step1_2(self, param):
-        print('code: step1_1')
-        mem = MEM()
-        shape, lhs, rhs, res, block_loop, block, wmma = param
-        M_ori, N_ori, K_ori = shape
-        wmma_m = wmma[0] # 16
-        wmma_n = wmma[1] # 16
-        wmma_k = wmma[2] # 16
-        # block=(64,4,7)
-        # calculate [64,112,2048] in 1 thread
-        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
-        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
-        K = K_ori
-        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
-        BLOCK_X = N_ori//N # 1008/112 = 9
-        BLOCK_Y = M_ori//M # 128/64 = 2
-        BLOCK_Z = block_loop[2] # 1
-        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
-        shape = max(M*K, N*K, M*N)
+    def ramp(self, T, T_local_shared, vec, param):
+        m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M,N_ori,N,blockIdx_x,N_alignment = param
+        for m_n_fused_i in range(vec):
+            m_n_fused_o_o_o = m_n_fused_o_o_o_o*block[2] + threadIdx_z
+            m_n_fused_o_o = m_n_fused_o_o_o*block[1] + threadIdx_y
+            m_n_fused_o = m_n_fused_o_o*block[0] + threadIdx_x
+            m_n_fused = m_n_fused_o*vec + m_n_fused_i
+            m = m_n_fused//N
+            n = m_n_fused%N
+            # left = blockIdx_y*M*N_ori + (m)*N_ori + blockIdx_x*N + (n)
+            # right = (m)*N + (n)
+            left = blockIdx_y*M*N_ori + (m)*N_ori + blockIdx_x*N + (n)
+            right = m*N_alignment + n
+            T[left] = T_local_shared[right]
+        return
 
-        A = lhs.flatten()
-        B = rhs.flatten()
-        T = res.flatten()
-        # import pdb;pdb.set_trace()
-        # A_shared = mem.new((M*K), "zero")
-        # B_shared = mem.new((N*K), "zero")
-        # T_shared = mem.new((M*N), "zero")
-        for blockIdx_z in range(BLOCK_Z): # 1
-            for blockIdx_y in range(BLOCK_Y): # 2
-                for blockIdx_x in range(BLOCK_X): # 9
-                    A_shared = mem.new((shape), "zero")
-                    A_shared_local = mem.new((M*K), "zero")
-                    B_shared_local = mem.new((N*K), "zero")
-                    T_local = mem.new((M*N), "zero")
-                    T_local_shared = mem.new((M*N), "zero")
-                    # lhs HBM -> L2
-                    for m in range(M):
-                        for k in range(K):
-                            A_shared[m*K + k] = A[blockIdx_y*M*K + m*K + k]
-                    # lhs L2 -> L1
-                    for m in range(M):
-                        for k in range(K):
-                            A_shared_local[m*K + k] = A_shared[m*K + k]
-                    # rhs HBM -> L2
-                    for n in range(N):
-                        for k in range(K):
-                            A_shared[n*K + k] = B[blockIdx_x*N*K + n*K + k]
-                    # rhs L2 -> L1
-                    for n in range(N):
-                        for k in range(K):
-                            B_shared_local[n*K + k] = A_shared[n*K + k]
-                    # calculate
-                    for m in range(M):
-                        for n in range(N):
-                            T_local[m*N + n] = 0
-                            for k in range(K):
-                                T_local[m*N + n] = T_local[m*N + n] + A_shared_local[m*K + k] * B_shared_local[n*K + k]
-                    # out L1 -> L2
-                    for m in range(M):
-                        for n in range(N):
-                            T_local_shared[m*N + n] = T_local[m*N + n]
-                    # out L2 -> HBM
-                    for threadIdx_z in range(block[2]): # 7
-                        for threadIdx_y in range(block[1]): # 4
-                            for threadIdx_x in range(block[0]): # 64
-                                C_o_o_o = (M*N)//block[0]//block[1]//block[2]
-                                for m_n_fused_o_o_o in range(C_o_o_o):
-                                    left = blockIdx_y*M*N_ori + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N_ori + blockIdx_x*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    right = ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    T[left] = T_local_shared[right]                                
-        res = np.reshape(T, (M_ori, N_ori))
-        return res
 
     # =============================================================== #
     #                       1. step1
     # =============================================================== #
     def step1(self, param):
-        print('code: step1_1')
+        print('code: step1')
         mem = MEM()
-        shape, lhs, rhs, res, block_loop, block, wmma = param
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
         M_ori, N_ori, K_ori = shape
         wmma_m = wmma[0] # 16
         wmma_n = wmma[1] # 16
@@ -607,16 +592,467 @@ class DenseKernel():
                         for n in range(N):
                             T_local_shared[m*N + n] = T_local[m*N + n]
                     # out L2 -> HBM
-                    for threadIdx_z in range(block[2]): # 7
-                        for threadIdx_y in range(block[1]): # 4
-                            for threadIdx_x in range(block[0]): # 64
-                                C_o_o_o = (M*N)//block[0]//block[1]//block[2]
-                                for m_n_fused_o_o_o in range(C_o_o_o):
-                                    left = blockIdx_y*M*N_ori + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N_ori + blockIdx_x*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    right = ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)//N)*N + ((((m_n_fused_o_o_o*block[2] + threadIdx_z)*block[1] + threadIdx_y)*block[0] + threadIdx_x)%N)
-                                    T[left] = T_local_shared[right]                                
+                    C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for threadIdx_z in range(block[2]):
+                            for threadIdx_y in range(block[1]):
+                                for threadIdx_x in range(block[0]):
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M,N_ori,N,blockIdx_x,N
+                                    self.ramp(T, T_local_shared, vec, param)
         res = np.reshape(T, (M_ori, N_ori))
         return res
+
+
+    # =============================================================== #
+    #                       2.0 step2_0_full
+    # =============================================================== #
+    def step2_0_full(self, param):
+        print('code: step2_0_full')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
+        M_ori, N_ori, K_ori = shape
+        alignment = 128 # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+        # import pdb;pdb.set_trace()
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 2
+                for blockIdx_x in range(BLOCK_X): # 9
+                    A_shared = mem.new((shape), "zero")
+                    A_shared_local = mem.new((M*K), "zero")
+                    B_shared_local = mem.new((N*K), "zero")
+                    T_local = mem.new((M*N), "zero") # [64,112]
+                    N_alignment = ((N + alignment-1)//alignment)*alignment
+                    T_local_shared = mem.new(M*N_alignment, "zero") # [64,128]
+                    # lhs HBM -> L2
+                    for m in range(M):
+                        for k in range(K):
+                            A_shared[m*K + k] = A[blockIdx_y*M*K + m*K + k]
+                    # lhs L2 -> L1
+                    for m in range(M):
+                        for k in range(K):
+                            A_shared_local[m*K + k] = A_shared[m*K + k]
+                    # rhs HBM -> L2
+                    for n in range(N):
+                        for k in range(K):
+                            A_shared[n*K + k] = B[blockIdx_x*N*K + n*K + k]
+                    # rhs L2 -> L1
+                    for n in range(N):
+                        for k in range(K):
+                            B_shared_local[n*K + k] = A_shared[n*K + k]
+                    # calculate
+                    for m in range(M):
+                        for n in range(N):
+                            T_local[m*N + n] = 0
+                            for k in range(K):
+                                T_local[m*N + n] = T_local[m*N + n] + A_shared_local[m*K + k] * B_shared_local[n*K + k]
+                    # # out L1 -> L2
+
+                    # for m in range(M):
+                    #     for n in range(N):
+                    #         left = m*N_alignment + n
+                    #         right = m*N + n
+                    #         T_local_shared[left] = T_local[right]
+
+                    for m_o_o in range(M//wmma_m//block[1]): # 1
+                        for n_o_o in range(N//wmma_n//block[2]): # 1
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_z in range(block[2]): # 7
+                                    for m_i in range(wmma_m): # 16
+                                        for n_i in range(wmma_n): # 16
+                                            m = ((m_o_o*block[1] + threadIdx_y)*wmma_m + m_i)
+                                            n = ((n_o_o*block[2] + threadIdx_z)*wmma_n + n_i)
+                                            left = m*N_alignment + n
+                                            right = m*N + n
+                                            T_local_shared[left] = T_local[right]
+
+                    # # out L2 -> HBM
+
+                    # for m_n_fused in range((M*N)):
+                    #     m = m_n_fused // N
+                    #     n = m_n_fused % N
+                    #     left = blockIdx_y*M*N_ori + m*N_ori + blockIdx_x*N + n
+                    #     right = m*N_alignment + n
+                    #     T[left] = T_local_shared[right]
+
+                    # for m_n_fused_o in range((M*N)//vec):
+                    #     for m_n_fused_i in range(vec):
+                    #         m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                    #         m = m_n_fused // N
+                    #         n = m_n_fused % N
+                    #         left = blockIdx_y*M*N_ori + m*N_ori + blockIdx_x*N + n
+                    #         right = m*N_alignment + n
+                    #         T[left] = T_local_shared[right]
+
+                    # C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    # for m_n_fused_o_o_o_o in range(C_o_o_o): # 2
+                    #     for threadIdx_z in range(block[2]): # 7
+                    #         for threadIdx_y in range(block[1]): # 4
+                    #             for threadIdx_x in range(block[0]): # 64
+                    #                 for m_n_fused_i in range(vec): # 2
+                    #                     m_n_fused_o_o_o = m_n_fused_o_o_o_o*block[2] + threadIdx_z
+                    #                     m_n_fused_o_o = m_n_fused_o_o_o*block[1] + threadIdx_y
+                    #                     m_n_fused_o = m_n_fused_o_o*block[0] + threadIdx_x
+                    #                     m_n_fused = m_n_fused_o*vec + m_n_fused_i
+                    #                     m = m_n_fused // N
+                    #                     n = m_n_fused % N
+                    #                     left = blockIdx_y*M*N_ori + m*N_ori + blockIdx_x*N + n
+                    #                     right = m*N_alignment + n
+                    #                     T[left] = T_local_shared[right]
+
+                    C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M,N_ori,N,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
+    # =============================================================== #
+    #                       2.0 step2_0
+    # =============================================================== #
+    def step2_0(self, param):
+        print('code: step2_0')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
+        M_ori, N_ori, K_ori = shape
+        alignment = 128 # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+        # import pdb;pdb.set_trace()
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 2
+                for blockIdx_x in range(BLOCK_X): # 9
+                    A_shared = mem.new((shape), "zero")
+                    A_shared_local = mem.new((M*K), "zero")
+                    B_shared_local = mem.new((N*K), "zero")
+                    T_local = mem.new((M*N), "zero") # [64,112]
+                    N_alignment = ((N + alignment-1)//alignment)*alignment
+                    T_local_shared = mem.new(M*N_alignment, "zero") # [64,128]
+                    # lhs HBM -> L2
+                    for m in range(M):
+                        for k in range(K):
+                            A_shared[m*K + k] = A[blockIdx_y*M*K + m*K + k]
+                    # lhs L2 -> L1
+                    for m in range(M):
+                        for k in range(K):
+                            A_shared_local[m*K + k] = A_shared[m*K + k]
+                    # rhs HBM -> L2
+                    for n in range(N):
+                        for k in range(K):
+                            A_shared[n*K + k] = B[blockIdx_x*N*K + n*K + k]
+                    # rhs L2 -> L1
+                    for n in range(N):
+                        for k in range(K):
+                            B_shared_local[n*K + k] = A_shared[n*K + k]
+                    # calculate
+                    for m in range(M):
+                        for n in range(N):
+                            T_local[m*N + n] = 0
+                            for k in range(K):
+                                T_local[m*N + n] = T_local[m*N + n] + A_shared_local[m*K + k] * B_shared_local[n*K + k]
+                    # # out L1 -> L2
+                    for m_o_o in range(M//wmma_m//block[1]): # 1
+                        for n_o_o in range(N//wmma_n//block[2]): # 1
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_z in range(block[2]): # 7
+                                    for m_i in range(wmma_m): # 16
+                                        for n_i in range(wmma_n): # 16
+                                            m = ((m_o_o*block[1] + threadIdx_y)*wmma_m + m_i)
+                                            n = ((n_o_o*block[2] + threadIdx_z)*wmma_n + n_i)
+                                            left = m*N_alignment + n
+                                            right = m*N + n
+                                            T_local_shared[left] = T_local[right]
+
+                    # # out L2 -> HBM
+                    C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M,N_ori,N,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
+    # =============================================================== #
+    #                       2.1 step2_1
+    # =============================================================== #
+    def step2_1(self, param):
+        print('code: step2_1')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
+        M_ori, N_ori, K_ori = shape
+        alignment = 128 # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+        M_shared = M
+        M = M//block[1]
+        
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 2
+                for blockIdx_x in range(BLOCK_X): # 9
+                    N_alignment = ((N + alignment-1)//alignment)*alignment
+                    T_local_shared = mem.new((M_shared*N_alignment), "zero")
+                    shape = max(M*K, N*K, M*N)
+                    A_shared = mem.new((shape), "zero")
+                    
+                    for threadIdx_y in range(block[1]): # 4
+                        A_shared_local = mem.new((M*K), "zero")
+                        B_shared_local = mem.new((N*K), "zero")
+                        T_local = mem.new((M*N), "zero")
+                        # lhs HBM -> L2
+                        for m in range(M):
+                            for k in range(K):
+                                left = m*K + k
+                                right = blockIdx_y*M_shared*K + threadIdx_y*M*K + m*K + k
+                                A_shared[left] = A[right]
+                        # lhs L2 -> L1
+                        for m in range(M):
+                            for k in range(K):
+                                A_shared_local[m*K + k] = A_shared[m*K + k]
+                        # rhs HBM -> L2
+                        for n in range(N):
+                            for k in range(K):
+                                A_shared[n*K + k] = B[blockIdx_x*N*K + n*K + k]
+                        # rhs L2 -> L1
+                        for n in range(N):
+                            for k in range(K):
+                                B_shared_local[n*K + k] = A_shared[n*K + k]
+                        # calculate
+                        for m in range(M):
+                            for n in range(N):
+                                T_local[m*N + n] = 0
+                                for k in range(K):
+                                    T_local[m*N + n] = T_local[m*N + n] + A_shared_local[m*K + k] * B_shared_local[n*K + k]
+                        
+                        # # out L1 -> L2
+
+                        # for m in range(M):
+                        #     for n in range(N):
+                        #         left = threadIdx_y*M*N_alignment + m*N_alignment + n
+                        #         right = m*N + n
+                        #         T_local_shared[left] = T_local[right]
+
+                        for m_o in range(M//wmma_m):
+                            for m_i in range(wmma_m): # 16
+                                for n_o_o in range(N//wmma_n//block[2]): # 1
+                                    for n_o_i in range(block[2]):
+                                        for n_i in range(wmma_n): # 16
+                                            n_o = n_o_o*block[2] + n_o_i
+                                            m = m_o*wmma_m + m_i
+                                            n = n_o*wmma_n + n_i
+                                            left = threadIdx_y*M*N_alignment + m*N_alignment + n
+                                            right = m*N + n
+                                            if left == 8192:
+                                                import pdb;pdb.set_trace()
+                                            T_local_shared[left] = T_local[right]
+
+                    # import pdb;pdb.set_trace()
+                    # # out L2 -> HBM
+                    # for m_n_fused in range((M_shared*N)):
+                    #     m = m_n_fused // N
+                    #     n = m_n_fused % N
+                    #     left = blockIdx_y*M_shared*N_ori + m*N_ori + blockIdx_x*N + n
+                    #     right = m*N_alignment + n
+                    #     T[left] = T_local_shared[right]
+
+                    # # out L2 -> HBM
+                    C_o_o_o = (M_shared*N)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o):
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M_shared,N_ori,N,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
+
+    # =============================================================== #
+    #                       2 step2
+    # =============================================================== #
+    def step2(self, param):
+        print('code: step2')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec = param
+        M_ori, N_ori, K_ori = shape
+        alignment = 128 # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+
+        M_shared = M
+        M = M//block[1]
+        N_shared = N
+        N = N//block[2]
+        # import pdb;pdb.set_trace()
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 2
+                for blockIdx_x in range(BLOCK_X): # 9
+                    N_alignment = ((N + alignment-1)//alignment)*alignment
+                    # T_local_shared = mem.new((M*N_alignment), "zero")
+                    shape = max(M*K, N*K, M*N)
+                    A_shared = mem.new((shape), "zero")                    
+                    for threadIdx_y in range(block[1]): # 4
+                        for threadIdx_z in range(block[2]): # 7
+                            A_shared_local = mem.new((M*K), "zero")
+                            B_shared_local = mem.new((N*K), "zero")
+                            T_local = mem.new((M*N), "zero")
+                            # lhs HBM -> L2
+                            for m in range(M):
+                                for k in range(K):
+                                    left = m*K + k
+                                    right = blockIdx_y*M_shared*K + threadIdx_y*M*K + m*K + k
+                                    A_shared[left] = A[right]
+                            # lhs L2 -> L1
+                            for m in range(M):
+                                for k in range(K):
+                                    A_shared_local[m*K + k] = A_shared[m*K + k]
+                            # rhs HBM -> L2
+                            for n in range(N):
+                                for k in range(K):
+                                    left = n*K + k
+                                    right = blockIdx_x*N_shared*K + threadIdx_z*N*K + n*K + k
+                                    A_shared[left] = B[right]
+                            # rhs L2 -> L1
+                            for n in range(N):
+                                for k in range(K):
+                                    B_shared_local[n*K + k] = A_shared[n*K + k]
+                            # calculate
+                            for m in range(M):
+                                for n in range(N):
+                                    T_local[m*N + n] = 0
+                                    for k in range(K):
+                                        T_local[m*N + n] = T_local[m*N + n] + A_shared_local[m*K + k] * B_shared_local[n*K + k]
+                            
+                            # # out L1 -> L2
+                            # import pdb;pdb.set_trace()
+                            for m in range(M):
+                                for n in range(N):
+                                    right = m*N + n
+                                    A_shared[right] = T_local[right]
+
+                            # for m in range(M):
+                            #     for n in range(N):
+                            #         left = threadIdx_y*M*N_alignment + m*N_alignment + threadIdx_z*N + n
+                            #         right = m*N + n
+                            #         A_shared[left] = T_local[right]
+
+                            # for m_o in range(M//wmma_m):
+                            #     for m_i in range(wmma_m): # 16
+                            #         for n_o in range(N//wmma_n):
+                            #             for n_i in range(wmma_n): # 16
+                            #                 m = m_o*wmma_m + m_i
+                            #                 n = n_o*wmma_n + n_i
+                            #                 left = threadIdx_y*M*N + m*N + n
+                            #                 right = m*N + n
+                            #                 T_local_shared[left] = T_local[right]
+                            
+
+                            # import pdb;pdb.set_trace()
+                            # # out L2 -> HBM
+                            # M = M_shared
+                            # N = N_shared
+                            for m in range(M):
+                                for n in range(N):
+                                    # for threadIdx_x in range(block[0]): # 64
+                                    left = blockIdx_y*M_shared*N_ori + threadIdx_y*M*N_ori + m*N_ori + blockIdx_x*N_shared + threadIdx_z*N + n
+                                    right = m*N + n
+                                    # print(left, right)
+                                    T[left] = A_shared[right]
+
+                            # C_o_o_o = (M*N)//vec//block[0]//block[1]//block[2]
+                            # for m_n_fused_o_o_o_o in range(C_o_o_o):
+                            #     for threadIdx_z in range(block[2]): # 7
+                            #         for threadIdx_y in range(block[1]): # 4
+                            #             for threadIdx_x in range(block[0]): # 64
+                            #                 param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M,N_ori,N,blockIdx_x,N
+                            #                 self.ramp(T, A_shared, vec, param)
+
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
 
     # =============================================================== #
     #                       5. step5_dense_1

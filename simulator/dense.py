@@ -62,21 +62,21 @@ def test():
     # res = dense.step0_dense_1(param)
     # util.check_result(res_std, res, " step0_dense_1 ")
 
-    # =====================  1. step0  ===================== #
-    # c_m, c_n = C.op.axis  # 128,1008
-    # c_bm, c_m = s[C].split(c_m, factor=block_m)  # 8,16
-    # c_bn, c_n = s[C].split(c_n, factor=block_n)  # 63,16
-    # s[C].reorder(c_bm, c_bn, c_m, c_n)  # 8,63,16,16
-    # s[C].bind(c_bm, te.thread_axis("blockIdx.y"))  # 8
-    # s[C].bind(c_bn, te.thread_axis("blockIdx.x"))  # 63
-    # calculate [128,16,2048] in 1 thread
-    res = mem.new(res_shape, "zero")
-    block_loop = [1,1,1] # grid=(9,2,1)
-    block = [64,4,7]
-    wmma = [16,16,16]
-    param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
-    res = dense.step0_dense(param)
-    util.check_result(res_std, res, " step0_dense ")
+    # # =====================  1. step0  ===================== #
+    # # c_m, c_n = C.op.axis  # 128,1008
+    # # c_bm, c_m = s[C].split(c_m, factor=block_m)  # 8,16
+    # # c_bn, c_n = s[C].split(c_n, factor=block_n)  # 63,16
+    # # s[C].reorder(c_bm, c_bn, c_m, c_n)  # 8,63,16,16
+    # # s[C].bind(c_bm, te.thread_axis("blockIdx.y"))  # 8
+    # # s[C].bind(c_bn, te.thread_axis("blockIdx.x"))  # 63
+    # # calculate [128,16,2048] in 1 thread
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
+    # res = dense.step0_dense(param)
+    # util.check_result(res_std, res, " step0_dense ")
 
     # # =====================  1.0 step1_0_fuse_dense  ===================== #
     # # c_t = s[C].fuse(c_m, c_n)  # 16*16
@@ -88,48 +88,79 @@ def test():
     # res = dense.step1_0_fuse_dense(param)
     # util.check_result(res_std, res, " step1_0_fuse_dense ")
 
-    # =====================  1.0 step1_0  ===================== #
-    # c_t, c_tx = s[C].split(c_t, factor=block_tx)  # 4,64
-    # c_t, c_ty = s[C].split(c_t, factor=block_ty)  # 4,1
-    # c_t, c_tz = s[C].split(c_t, factor=block_tz)  # 4,1
+    # # =====================  1.0 step1_0  ===================== #
+    # # c_t, c_tv = s[C].split(c_t, factor=vec)  # 3584,2
+    # # c_t, c_tx = s[C].split(c_t, factor=block_tx)  # 56,64
+    # # c_t, c_ty = s[C].split(c_t, factor=block_ty)  # 14,4
+    # # c_t, c_tz = s[C].split(c_t, factor=block_tz)  # 2,7
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
+    # res = dense.step1_0(param)
+    # util.check_result(res_std, res, " step1_0 ")
+
+    # # =====================  1 step1  ===================== #
+    # # s[C].bind(c_tx, te.thread_axis("threadIdx.x"))  # 64
+    # # s[C].bind(c_ty, te.thread_axis("threadIdx.y"))  # 4
+    # # s[C].bind(c_tz, te.thread_axis("threadIdx.z"))  # 7
+    # # s[C].vectorize(c_tv)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
+    # res = dense.step1(param)
+    # util.check_result(res_std, res, " step1 ")
+
+    # # =====================  2_0 step2_0  ===================== #
+    # # cs_m, cs_n = CS.op.axis  # 128/2,1008/9 = 64,112
+    # # s[CS].storage_align(cs_m, CS_align - 1, CS_align)  # align 16
+    # # cs_m, cs_mi = s[CS].split(cs_m, factor=wmma_m)  # 1,16
+    # # cs_m, cs_ty = s[CS].split(cs_m, factor=block_ty)  # 1,1
+    # # cs_n, cs_ni = s[CS].split(cs_n, factor=wmma_n)  # 1,16
+    # # cs_n, cs_tx = s[CS].split(cs_n, factor=block_tz)  # 1,1
+    # # s[CS].reorder(cs_m, cs_n, cs_ty, cs_tx, cs_mi, cs_ni)  # 1,1,1,1,16,16
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
+    # res = dense.step2_0(param)
+    # util.check_result(res_std, res, " step2_0 ")
+
+    # # =====================  2_1 step2_1  ===================== #
+    # # cs_m, cs_n = CS.op.axis  # 128/2,1008/9 = 64,112
+    # # s[CS].storage_align(cs_m, CS_align - 1, CS_align)  # align 16
+    # # cs_m, cs_mi = s[CS].split(cs_m, factor=wmma_m)  # 1,16
+    # # cs_m, cs_ty = s[CS].split(cs_m, factor=block_ty)  # 1,1
+    # # cs_n, cs_ni = s[CS].split(cs_n, factor=wmma_n)  # 1,16
+    # # cs_n, cs_tx = s[CS].split(cs_n, factor=block_tz)  # 1,1
+    # # s[CS].reorder(cs_m, cs_n, cs_ty, cs_tx, cs_mi, cs_ni)  # 1,1,1,1,16,16
+    # # s[CS].bind(cs_ty, te.thread_axis("threadIdx.y"))  # 16
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
+    # res = dense.step2_1(param)
+    # util.check_result(res_std, res, " step2_1 ")
+
+    # =====================  2 step2  ===================== #
+    # s[CS].bind(cs_tx, te.thread_axis("threadIdx.z"))  # 16
     res = mem.new(res_shape, "zero")
     block_loop = [1,1,1] # grid=(9,2,1)
     block = [64,4,7]
     wmma = [16,16,16]
     vec = 2
     param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
-    res = dense.step1_0(param)
-    util.check_result(res_std, res, " step1_0 ")
-
-    # # =====================  1.1 step1_1  ===================== #
-    # # s[C].bind(c_tx, te.thread_axis("threadIdx.x"))  # 64
-    # res = mem.new(res_shape, "zero")
-    # block_loop = [1,1,1] # grid=(9,2,1)
-    # block = [64,4,7]
-    # wmma = [16,16,16]
-    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
-    # res = dense.step1_1(param)
-    # util.check_result(res_std, res, " step1_1 ")
-
-    # # =====================  1.2 step1_2  ===================== #
-    # # s[C].bind(c_ty, te.thread_axis("threadIdx.y"))  # 1
-    # res = mem.new(res_shape, "zero")
-    # block_loop = [1,1,1] # grid=(9,2,1)
-    # block = [64,4,7]
-    # wmma = [16,16,16]
-    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
-    # res = dense.step1_2(param)
-    # util.check_result(res_std, res, " step1_2 ")
-
-    # # =====================  1 step1  ===================== #
-    # # s[C].bind(c_tz, te.thread_axis("threadIdx.z"))  # 4
-    # res = mem.new(res_shape, "zero")
-    # block_loop = [1,1,1] # grid=(9,2,1)
-    # block = [64,4,7]
-    # wmma = [16,16,16]
-    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
-    # res = dense.step1(param)
-    # util.check_result(res_std, res, " step1 ")
+    res = dense.step2(param)
+    util.check_result(res_std, res, " step2 ")
 
     # # =====================  5. step5  ===================== #
     # # cs_m, cs_mi = s[CS].split(cs_m, factor=wmma_m)
@@ -143,7 +174,8 @@ def test():
     # block_loop = [1,1,1] # grid=(9,2,1)
     # block = [64,4,7]
     # wmma = [16,16,16]
-    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
+    # vec = 2
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
     # res = dense.step5_dense(param)
     # util.check_result(res_std, res, " step5_dense ")
 
