@@ -75,6 +75,8 @@ __global__ void MatMulKernel(const Matrix, const Matrix, Matrix);
 // Matrix dimensions are assumed to be multiples of BLOCK_SIZE
 void MatMul(const Matrix A, const Matrix B, Matrix C)
 {
+    float time;
+    cudaEvent_t start, stop;
     // Load A and B to device memory
     Matrix d_A;
     d_A.width = d_A.stride = A.width; d_A.height = A.height;
@@ -100,7 +102,18 @@ void MatMul(const Matrix A, const Matrix B, Matrix C)
     // N/BLOCK_SIZE, M/BLOCK_SIZE, 
     dim3 dimGrid(B.width / dimBlock.x, A.height / dimBlock.y);
     printf("\ngrid(%d,%d,%d), block(%d,%d,%d)\n", dimGrid.x, dimGrid.y, dimGrid.z, dimBlock.x, dimBlock.y, dimBlock.z);
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
     MatMulKernel<<<dimGrid, dimBlock>>>(d_A, d_B, d_C);
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+
+    printf("Matrix Multiplication with Shared Memory[%d,%d] with split[%d,%d] Time elapsed =  %3.3f ms\n", A.width, A.height, B.width, B.height, time);
 
     // Read C from device memory
     cudaMemcpy(C.elements, d_C.elements, size,
@@ -174,7 +187,9 @@ void MatMul(const Matrix A, const Matrix B, Matrix C)
 // Matrix Multiplication with Shared Memory
 int main()
 {
-    GpuTimer timer;
+    float time;
+    cudaEvent_t start, stop;
+
     Matrix A, B, C, D;
     A.width = MATMUL_K;
     A.height = MATMUL_M;
@@ -187,10 +202,9 @@ int main()
     C.elements = (float *)malloc(C.width * C.height * sizeof(float));
     initialMatrix(A.elements, A.width, A.height);
     initialMatrix(B.elements, B.width, B.height);
-    timer.Start();
+
     MatMul(A, B, C);
-	timer.Stop();
-    printf("Matrix Multiplication without Shared Memory[%d,%d] with split[%d,%d] Time elapsed = %g ms\n", A.width, A.height, B.width, B.height, timer.Elapsed());
+
     D.width = MATMUL_N;
     D.height = MATMUL_M;
     D.elements = (float *)malloc(D.width * D.height * sizeof(float));

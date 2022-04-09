@@ -1,0 +1,2 @@
+add_executable(5_2_3_occupancy 5_2_3_occupancy.cu)
+add_executable(5_2_3_occupancy_config 5_2_3_occupancy_config.cu)
