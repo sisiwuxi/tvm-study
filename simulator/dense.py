@@ -198,20 +198,85 @@ def test():
     # util.check_result(res_std, res, " step4_0 ")
     # return
 
-    # =====================  4.1 step4_1  ===================== #
-    # s[AS].compute_at(s[CF], cf_ko)
-    # s[AF].compute_at(s[CF], cf_m)  # ko,ki,m,n
+    # # =====================  4.1 step4_1  ===================== #
+    # # s[AS].compute_at(s[CF], cf_ko)
+    # # s[AF].compute_at(s[CF], cf_m)  # ko,ki,m,n
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step4_1(param)
+    # util.check_result(res_std, res, " step4_0 ")
+    # return
+
+    # # =====================  4 step4  ===================== #
+    # # s[BS].compute_at(s[CF], cf_ko)
+    # # s[BF].compute_at(s[CF], cf_m)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step4(param)
+    # util.check_result(res_std, res, " step4 ")
+    # return
+
+    # # =====================  5 step5  ===================== #
+    # # af_m, af_k = AF.op.axis  # 16,2048
+    # # af_m, af_mi = s[AF].split(af_m, factor=wmma_m)  # 1,16
+    # # af_k, af_ki = s[AF].split(af_k, factor=wmma_k)  # 128,16
+    # # s[AF].reorder(af_m, af_k, af_mi, af_ki)  # 1,128,16,16
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step5(param)
+    # util.check_result(res_std, res, " step5 ")
+    # return
+
+    # # =====================  6 step6  ===================== #
+    # # bf_n, bf_k = BF.op.axis  # 16,2048
+    # # bf_n, bf_ni = s[BF].split(bf_n, factor=wmma_n)  # 1,16
+    # # bf_k, bf_ki = s[BF].split(bf_k, factor=wmma_k)  # 128,16
+    # # s[BF].reorder(bf_n, bf_k, bf_ni, bf_ki)  # 1,128,16,16
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step6(param)
+    # util.check_result(res_std, res, " step6 ")
+    # return
+
+    # =====================  7.0 step7_0  ===================== #
+    # as_m, as_k = AS.op.axis  # 16,16
+    # s[AS].storage_align(as_m, AS_align - 1, AS_align)  # align 16
+    # as_t = s[AS].fuse(as_m, as_k)  # 16*16
+    # as_t, as_tv = s[AS].split(as_t, factor=vec)  # 256,1
+    # as_t, as_tx = s[AS].split(as_t, factor=block_tx)  # 4,64
+    # as_t, as_ty = s[AS].split(as_t, factor=block_ty)  # 4,1
+    # as_t, as_tz = s[AS].split(as_t, factor=block_tz)  # 4,1
     res = mem.new(res_shape, "zero")
     block_loop = [1,1,1] # grid=(9,2,1)
     block = [64,4,7]
     wmma = [16,16,16]
     vec = 2
     k_factor = 8
-    param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
-    res = dense.step4_1(param)
-    util.check_result(res_std, res, " step4_0 ")
+    alignment = [128,136,136]
+    param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    res = dense.step7_0(param)
+    util.check_result(res_std, res, " step7_0 ")
     return
-
 
 if __name__ == '__main__':
     test()
