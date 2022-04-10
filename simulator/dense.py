@@ -75,8 +75,8 @@ def test():
     # block = [64,4,7]
     # wmma = [16,16,16]
     # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma
-    # res = dense.step0_dense(param)
-    # util.check_result(res_std, res, " step0_dense ")
+    # res = dense.step0(param)
+    # util.check_result(res_std, res, " step0 ")
 
     # # =====================  1.0 step1_0_fuse_dense  ===================== #
     # # c_t = s[C].fuse(c_m, c_n)  # 16*16
@@ -151,35 +151,67 @@ def test():
     # res = dense.step2_1(param)
     # util.check_result(res_std, res, " step2_1 ")
 
-    # =====================  2 step2  ===================== #
-    # s[CS].bind(cs_tx, te.thread_axis("threadIdx.z"))  # 16
-    res = mem.new(res_shape, "zero")
-    block_loop = [1,1,1] # grid=(9,2,1)
-    block = [64,4,7]
-    wmma = [16,16,16]
-    vec = 2
-    param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
-    res = dense.step2(param)
-    util.check_result(res_std, res, " step2 ")
-
-    # # =====================  5. step5  ===================== #
-    # # cs_m, cs_mi = s[CS].split(cs_m, factor=wmma_m)
-    # # cs_m, cs_ty = s[CS].split(cs_m, factor=block_ty)
-    # # cs_n, cs_ni = s[CS].split(cs_n, factor=wmma_n)
-    # # cs_n, cs_tx = s[CS].split(cs_n, factor=block_tz)
-    # # s[CS].reorder(cs_m, cs_n, cs_ty, cs_tx, cs_mi, cs_ni)
-    # # s[CS].bind(cs_ty, te.thread_axis("threadIdx.y"))
-    # # s[CS].bind(cs_tx, te.thread_axis("threadIdx.z"))
+    # # =====================  2 step2  ===================== #
+    # # T_local_shared[64,128] aligned & reuse A_shared[16,2048] ???
+    # # s[CS].bind(cs_tx, te.thread_axis("threadIdx.z"))  # 16
     # res = mem.new(res_shape, "zero")
     # block_loop = [1,1,1] # grid=(9,2,1)
     # block = [64,4,7]
     # wmma = [16,16,16]
     # vec = 2
     # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec
-    # res = dense.step5_dense(param)
-    # util.check_result(res_std, res, " step5_dense ")
+    # res = dense.step2(param)
+    # util.check_result(res_std, res, " step2 ")
 
+    # # =====================  3 step3  ===================== #
+    # # T_local_shared[64,128] aligned & reuse A_shared[16,2048] ???
+    # # cf_m, cf_n = CF.op.axis  # 16,16
+    # # cf_m, cf_mi = s[CF].split(cf_m, factor=wmma_m)  # 1,16
+    # # cf_n, cf_ni = s[CF].split(cf_n, factor=wmma_n)  # 1,16
+    # # cf_k = CF.op.reduce_axis[0]  # 2048
+    # # cf_k, cf_kii = s[CF].split(cf_k, factor=wmma_k)  # 128,16
+    # # cf_ko, cf_ki = s[CF].split(cf_k, factor=k_factor)  # 16,8
+    # # s[CF].reorder(cf_ko, cf_ki, cf_m, cf_n, cf_mi,
+    # #               cf_ni, cf_kii)  # 16,8,1,1,16,16,16
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step3(param)
+    # util.check_result(res_std, res, " step3 ")
+
+
+    # # =====================  4.0 step4_0  ===================== #
+    # # s[CS].compute_at(s[C], c_bn)
+    # # s[CF].compute_at(s[CS], cs_tx)  # m,n,ty,tx
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    # res = dense.step4_0(param)
+    # util.check_result(res_std, res, " step4_0 ")
+    # return
+
+    # =====================  4.1 step4_1  ===================== #
+    # s[AS].compute_at(s[CF], cf_ko)
+    # s[AF].compute_at(s[CF], cf_m)  # ko,ki,m,n
+    res = mem.new(res_shape, "zero")
+    block_loop = [1,1,1] # grid=(9,2,1)
+    block = [64,4,7]
+    wmma = [16,16,16]
+    vec = 2
+    k_factor = 8
+    param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor
+    res = dense.step4_1(param)
+    util.check_result(res_std, res, " step4_0 ")
     return
+
 
 if __name__ == '__main__':
     test()
