@@ -258,24 +258,134 @@ def test():
     # util.check_result(res_std, res, " step6 ")
     # return
 
-    # =====================  7.0 step7_0  ===================== #
-    # as_m, as_k = AS.op.axis  # 16,16
-    # s[AS].storage_align(as_m, AS_align - 1, AS_align)  # align 16
-    # as_t = s[AS].fuse(as_m, as_k)  # 16*16
-    # as_t, as_tv = s[AS].split(as_t, factor=vec)  # 256,1
-    # as_t, as_tx = s[AS].split(as_t, factor=block_tx)  # 4,64
-    # as_t, as_ty = s[AS].split(as_t, factor=block_ty)  # 4,1
-    # as_t, as_tz = s[AS].split(as_t, factor=block_tz)  # 4,1
+    # # =====================  7 step7_0  ===================== #
+    # # as_m, as_k = AS.op.axis  # 16,16
+    # # s[AS].storage_align(as_m, AS_align - 1, AS_align)  # align 16
+    # # as_t = s[AS].fuse(as_m, as_k)  # 16*16
+    # # as_t, as_tv = s[AS].split(as_t, factor=vec)  # 256,1
+    # # as_t, as_tx = s[AS].split(as_t, factor=block_tx)  # 4,64
+    # # as_t, as_ty = s[AS].split(as_t, factor=block_ty)  # 4,1
+    # # as_t, as_tz = s[AS].split(as_t, factor=block_tz)  # 4,1
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step7_0(param)
+    # util.check_result(res_std, res, " step7_0 ")
+    # return
+
+    # # =====================  7 step7  ===================== #
+    # # s[AS].bind(as_tx, te.thread_axis("threadIdx.x"))  # 64
+    # # s[AS].bind(as_ty, te.thread_axis("threadIdx.y"))  # 1
+    # # s[AS].bind(as_tz, te.thread_axis("threadIdx.z"))  # 1
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step7(param)
+    # util.check_result(res_std, res, " step7 ")
+    # return
+
+
+    # # =====================  8.0 step8_0  ===================== #
+    # # bs_n, bs_k = BS.op.axis  # 16,16
+    # # s[BS].storage_align(bs_n, BS_align - 1, BS_align)  # align 16
+    # # bs_t = s[BS].fuse(bs_n, bs_k)  # 16*16
+    # # bs_t, bs_tv = s[BS].split(bs_t, factor=vec)  # 256,1
+    # # bs_t, bs_tx = s[BS].split(bs_t, factor=block_tx)  # 4,64
+    # # bs_t, bs_ty = s[BS].split(bs_t, factor=block_ty)  # 4,1
+    # # bs_t, bs_tz = s[BS].split(bs_t, factor=block_tz)  # 4,1
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step8_0(param)
+    # util.check_result(res_std, res, " step8_0 ")
+    # return
+
+    # # =====================  8 step8  ===================== #
+    # # s[BS].bind(bs_tx, te.thread_axis("threadIdx.x"))  # 64
+    # # s[BS].bind(bs_ty, te.thread_axis("threadIdx.y"))  # 1
+    # # s[BS].bind(bs_tz, te.thread_axis("threadIdx.z"))  # 1
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step8(param)
+    # util.check_result(res_std, res, " step8 ")
+    # return
+
+
+    # # =====================  9 step9  ===================== #
+    # # s[AF].tensorize(af_mi, intrin_bi_wmma_load_matrix_gemm((wmma_m, wmma_n, wmma_k), "A", strides_src=AS_stride, strides_dst=AF_stride),)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step9(param)
+    # util.check_result(res_std, res, " step9 ")
+    # return
+
+    # # =====================  10 step10  ===================== #
+    # # s[BF].tensorize(bf_ni, intrin_bi_wmma_load_matrix_gemm((wmma_m, wmma_n, wmma_k), "B", strides_src=BS_stride, strides_dst=BF_stride),)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step10(param)
+    # util.check_result(res_std, res, " step10 ")
+    # return
+
+    # # =====================  11 step11  ===================== #
+    # # s[CF].tensorize(cf_mi, intrin_bi_wmma_gemm((wmma_m, wmma_n, wmma_k),bi_wmma_compute, input_scope="local", strides_A=AF_stride, strides_B=BF_stride, strides_C=CF_stride,),)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step11(param)
+    # util.check_result(res_std, res, " step11 ")
+    # return
+
+    # =====================  12 step12  ===================== #
+    # s[CF].tensorize(cf_mi, intrin_bi_wmma_gemm((wmma_m, wmma_n, wmma_k),bi_wmma_compute, input_scope="local", strides_A=AF_stride, strides_B=BF_stride, strides_C=CF_stride,),)
     res = mem.new(res_shape, "zero")
     block_loop = [1,1,1] # grid=(9,2,1)
     block = [64,4,7]
     wmma = [16,16,16]
     vec = 2
     k_factor = 8
-    alignment = [128,136,136]
+    alignment = [136,136,128]
     param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
-    res = dense.step7_0(param)
-    util.check_result(res_std, res, " step7_0 ")
+    res = dense.step12(param)
+    util.check_result(res_std, res, " step12 ")
     return
 
 if __name__ == '__main__':
