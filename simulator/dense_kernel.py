@@ -5610,3 +5610,709 @@ class DenseKernel():
                                     self.ramp(T, T_local_shared, vec, param)
         res = np.reshape(T, (M_ori, N_ori))
         return res
+
+    # =============================================================== #
+    #                       13.0 step13_0
+    # =============================================================== #
+    def step13_0(self, param):
+        print('code: step13_0')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec, k_factor, alignment = param
+        M_ori, N_ori, K_ori = shape
+        AS_align = alignment[0]
+        BS_align = alignment[1]
+        CS_align = alignment[2] # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+
+        M_shared = M # 64
+        M = M//block[1]
+        N_shared = N # 112
+        N = N//block[2]
+        N_alignment = ((N_shared + CS_align-1)//CS_align)*CS_align
+        
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 4
+                T_local = mem.new((M*N), "zero") # 16*16 = 256
+                # how to reuse A_shared without compute_at
+                T_local_shared = mem.new((M_shared*N_alignment), "zero") # 32*256 = 8192
+                for blockIdx_x in range(BLOCK_X): # 7
+                    for threadIdx_y in range(block[1]): # 2
+                        for threadIdx_z in range(block[2]): # 9
+                            cf_ko_factor = K//wmma_k//k_factor # 2048//16//2 = 64
+                            K_ko = K//cf_ko_factor # 2048//64 = 32
+                            K_ko_alignment = ((K_ko + AS_align -1)//AS_align)*AS_align # 32
+                            A_shared = mem.new(2*M_shared*K_ko_alignment, "zero") # 2*32*32 = 2048
+                            B_shared = mem.new((N_shared*K_ko_alignment), "zero") # 144*32 = 4608
+                            K_m = K//cf_ko_factor//k_factor//(M//wmma_m) # 16
+                            A_shared_local = mem.new((M*K_m), "zero") # 256
+                            B_shared_local = mem.new((N*K_m), "zero") # 256
+                            A_shared_local_1 = mem.new((M*K_m), "zero") # 256
+                            B_shared_local_1 = mem.new((N*K_m), "zero") # 256                            
+                            # memset
+                            T_local = self.dense_broadcast()
+
+                            # head: lhs HBM -> L2 iter0 for double buffer
+                            k_o_o = 0
+                            upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                            mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                            for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                for as_threadIdx_z in range(block[2]): # 7
+                                    for as_threadIdx_y in range(block[1]): # 4
+                                        for as_threadIdx_x in range(block[0]): # 64
+                                            for m_k_fuse_i in range(vec): # 1
+                                                m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                if m_k_fuse_o_o_o < upper_bound:
+                                                    m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                    m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                    m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                    m = m_k_fuse//K_ko
+                                                    k = m_k_fuse%K_ko
+                                                    left = m*K_ko_alignment + k
+                                                    right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + k
+                                                    A_shared[left] = A[right]
+                            # import pdb;pdb.set_trace()
+                            # body: use A_shared double buffer
+                            k_o_o_iters = K//wmma_k//k_factor - 1 # 2048//16//2 - 1 = 64 - 1 = 63
+                            for k_o_o in range(k_o_o_iters): # 63.
+                                # lhs HBM -> L2
+                                upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                                mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                                for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                    for as_threadIdx_z in range(block[2]): # 7
+                                        for as_threadIdx_y in range(block[1]): # 4
+                                            for as_threadIdx_x in range(block[0]): # 64
+                                                for m_k_fuse_i in range(vec): # 1
+                                                    m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                    if m_k_fuse_o_o_o < upper_bound:
+                                                        m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                        m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                        m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                        m = m_k_fuse//K_ko
+                                                        k = m_k_fuse%K_ko
+                                                        # select ping-pong buffer
+                                                        left = ((k_o_o+1)%2)*M_shared*K_ko_alignment + m*K_ko_alignment + k
+                                                        right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + K_ko + k
+                                                        A_shared[left] = A[right]
+                                # import pdb;pdb.set_trace()
+                                # rhs HBM -> L2
+                                nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                                for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                    for bs_threadIdx_z in range(block[2]): # 7
+                                        for bs_threadIdx_y in range(block[1]): # 4
+                                            for bs_threadIdx_x in range(block[0]): # 64
+                                                for n_k_fuse_i in range(vec): # 2
+                                                    n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                    n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                    n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                    n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                    n = n_k_fuse//K_ko
+                                                    k = n_k_fuse%K_ko
+                                                    left = n*K_ko_alignment + k
+                                                    right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                    B_shared[left] = B[right]
+
+                                for k_o_i in range(k_factor): # 8
+                                    for m_o in range(M//wmma_m): # 1
+                                        # lhs L2 -> L1
+                                        for mk_o in range(wmma_m*wmma_k//4): # 64
+                                            m = (mk_o*4 + 0)//wmma_k
+                                            k = (mk_o*4 + 0)%wmma_k
+                                            left = m*K_m + k
+                                            right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                            # import pdb;pdb.set_trace()
+                                            A_shared_local[left] = A_shared[right]
+                                            m = (mk_o*4 + 1)//wmma_k
+                                            k = (mk_o*4 + 1)%wmma_k
+                                            left = m*K_m + k
+                                            right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                            A_shared_local[left] = A_shared[right]
+                                            m = (mk_o*4 + 2)//wmma_k
+                                            k = (mk_o*4 + 2)%wmma_k
+                                            left = m*K_m + k
+                                            right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                            A_shared_local[left] = A_shared[right]
+                                            m = (mk_o*4 + 3)//wmma_k
+                                            k = (mk_o*4 + 3)%wmma_k
+                                            left = m*K_m + k
+                                            right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                            A_shared_local[left] = A_shared[right]
+                                        # rhs L2 -> L1
+                                        for nk_o in range(wmma_n*wmma_k//4): # 64
+                                            n = (nk_o*4 + 0)//wmma_k
+                                            k = (nk_o*4 + 0)%wmma_k
+                                            left = n*K_m + k
+                                            right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                            B_shared_local[left] = B_shared[right]
+                                            n = (nk_o*4 + 1)//wmma_k
+                                            k = (nk_o*4 + 1)%wmma_k
+                                            left = n*K_m + k
+                                            right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                            B_shared_local[left] = B_shared[right]
+                                            n = (nk_o*4 + 2)//wmma_k
+                                            k = (nk_o*4 + 2)%wmma_k
+                                            left = n*K_m + k
+                                            right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                            B_shared_local[left] = B_shared[right]
+                                            n = (nk_o*4 + 3)//wmma_k
+                                            k = (nk_o*4 + 3)%wmma_k
+                                            left = n*K_m + k
+                                            right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                            B_shared_local[left] = B_shared[right]
+
+                                        param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                        T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local,B_shared_local,T_local,param)
+                            # tail: calculate the last iteration without A_shared load
+                            k_o_o = k_o_o_iters
+                            # rhs HBM -> L2
+                            nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                            for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                for bs_threadIdx_z in range(block[2]): # 7
+                                    for bs_threadIdx_y in range(block[1]): # 4
+                                        for bs_threadIdx_x in range(block[0]): # 64
+                                            for n_k_fuse_i in range(vec): # 2
+                                                n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                n = n_k_fuse//K_ko
+                                                k = n_k_fuse%K_ko
+                                                left = n*K_ko_alignment + k
+                                                right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                B_shared[left] = B[right]
+
+                            for k_o_i in range(k_factor): # 8
+                                for m_o in range(M//wmma_m): # 1
+                                    # lhs L2 -> L1
+                                    for mk_o in range(wmma_m*wmma_k//4): # 64
+                                        m = (mk_o*4 + 0)//wmma_k
+                                        k = (mk_o*4 + 0)%wmma_k
+                                        left = m*K_m + k
+                                        right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                        A_shared_local_1[left] = A_shared[right]
+                                        m = (mk_o*4 + 1)//wmma_k
+                                        k = (mk_o*4 + 1)%wmma_k
+                                        left = m*K_m + k
+                                        right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                        A_shared_local_1[left] = A_shared[right]
+                                        m = (mk_o*4 + 2)//wmma_k
+                                        k = (mk_o*4 + 2)%wmma_k
+                                        left = m*K_m + k
+                                        right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                        A_shared_local_1[left] = A_shared[right]
+                                        m = (mk_o*4 + 3)//wmma_k
+                                        k = (mk_o*4 + 3)%wmma_k
+                                        left = m*K_m + k
+                                        right = (k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + m*K_ko_alignment + k_o_i*K_m + k
+                                        A_shared_local_1[left] = A_shared[right]
+                                    # rhs L2 -> L1
+                                    for nk_o in range(wmma_n*wmma_k//4): # 64
+                                        n = (nk_o*4 + 0)//wmma_k
+                                        k = (nk_o*4 + 0)%wmma_k
+                                        left = n*K_m + k
+                                        right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                        B_shared_local_1[left] = B_shared[right]
+                                        n = (nk_o*4 + 1)//wmma_k
+                                        k = (nk_o*4 + 1)%wmma_k
+                                        left = n*K_m + k
+                                        right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                        B_shared_local_1[left] = B_shared[right]
+                                        n = (nk_o*4 + 2)//wmma_k
+                                        k = (nk_o*4 + 2)%wmma_k
+                                        left = n*K_m + k
+                                        right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                        B_shared_local_1[left] = B_shared[right]
+                                        n = (nk_o*4 + 3)//wmma_k
+                                        k = (nk_o*4 + 3)%wmma_k
+                                        left = n*K_m + k
+                                        right = threadIdx_z*N*K_ko_alignment + n*K_ko_alignment + k_o_i*K_m + k
+                                        B_shared_local_1[left] = B_shared[right]
+
+                                    param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                    T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local_1,B_shared_local_1,T_local,param)
+
+                            # # out L1 -> L2
+                            for mn_o in range(wmma_m*wmma_n//4): # 64
+                                m = (mn_o*4 + 0)//wmma_n
+                                n = (mn_o*4 + 0)%wmma_n
+                                left = threadIdx_y*M*N_alignment + m*N_alignment + threadIdx_z*N + n
+                                right = m*N + n
+                                T_local_shared[left] = T_local[right]
+                                m = (mn_o*4 + 1)//wmma_n
+                                n = (mn_o*4 + 1)%wmma_n
+                                left = threadIdx_y*M*N_alignment + m*N_alignment + threadIdx_z*N + n
+                                right = m*N + n
+                                T_local_shared[left] = T_local[right]
+                                m = (mn_o*4 + 2)//wmma_n
+                                n = (mn_o*4 + 2)%wmma_n
+                                left = threadIdx_y*M*N_alignment + m*N_alignment + threadIdx_z*N + n
+                                right = m*N + n
+                                T_local_shared[left] = T_local[right]
+                                m = (mn_o*4 + 3)//wmma_n
+                                n = (mn_o*4 + 3)%wmma_n
+                                left = threadIdx_y*M*N_alignment + m*N_alignment + threadIdx_z*N + n
+                                right = m*N + n
+                                T_local_shared[left] = T_local[right]
+
+                    # # out L2 -> HBM
+                    C_o_o_o = (M_shared*N_shared)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o): # 2
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M_shared,N_ori,N_shared,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
+
+    # =============================================================== #
+    #                       13 step13
+    # =============================================================== #
+    def step13(self, param):
+        print('code: step13')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec, k_factor, alignment = param
+        M_ori, N_ori, K_ori = shape
+        AS_align = alignment[0]
+        BS_align = alignment[1]
+        CS_align = alignment[2] # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+
+        M_shared = M # 64
+        M = M//block[1]
+        N_shared = N # 112
+        N = N//block[2]
+        N_alignment = ((N_shared + CS_align-1)//CS_align)*CS_align
+        
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 4
+                T_local = mem.new((M*N), "zero") # 16*16 = 256
+                # how to reuse A_shared without compute_at
+                T_local_shared = mem.new((M_shared*N_alignment), "zero") # 32*256 = 8192
+                for blockIdx_x in range(BLOCK_X): # 7
+                    for threadIdx_y in range(block[1]): # 2
+                        for threadIdx_z in range(block[2]): # 9
+                            cf_ko_factor = K//wmma_k//k_factor # 2048//16//2 = 64
+                            K_ko = K//cf_ko_factor # 2048//64 = 32
+                            K_ko_alignment = ((K_ko + AS_align -1)//AS_align)*AS_align # 32
+                            A_shared = mem.new(2*M_shared*K_ko_alignment, "zero") # 2*32*32 = 2048
+                            B_shared = mem.new((N_shared*K_ko_alignment), "zero") # 144*32 = 4608
+                            K_m = K//cf_ko_factor//k_factor//(M//wmma_m) # 16
+                            A_shared_local = mem.new((M*K_m), "zero") # 256
+                            B_shared_local = mem.new((N*K_m), "zero") # 256
+                            A_shared_local_1 = mem.new((M*K_m), "zero") # 256
+                            B_shared_local_1 = mem.new((N*K_m), "zero") # 256                            
+                            # memset
+                            T_local = self.dense_broadcast()
+
+                            # head: lhs HBM -> L2 iter0 for double buffer
+                            k_o_o = 0
+                            upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                            mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                            for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                for as_threadIdx_z in range(block[2]): # 7
+                                    for as_threadIdx_y in range(block[1]): # 4
+                                        for as_threadIdx_x in range(block[0]): # 64
+                                            for m_k_fuse_i in range(vec): # 1
+                                                m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                if m_k_fuse_o_o_o < upper_bound:
+                                                    m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                    m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                    m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                    m = m_k_fuse//K_ko
+                                                    k = m_k_fuse%K_ko
+                                                    left = m*K_ko_alignment + k
+                                                    right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + k
+                                                    A_shared[left] = A[right]
+                            # import pdb;pdb.set_trace()
+                            # body: use A_shared double buffer
+                            k_o_o_iters = K//wmma_k//k_factor - 1 # 2048//16//2 - 1 = 64 - 1 = 63
+                            for k_o_o in range(k_o_o_iters): # 63.
+                                # lhs HBM -> L2
+                                upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                                mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                                for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                    for as_threadIdx_z in range(block[2]): # 7
+                                        for as_threadIdx_y in range(block[1]): # 4
+                                            for as_threadIdx_x in range(block[0]): # 64
+                                                for m_k_fuse_i in range(vec): # 1
+                                                    m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                    if m_k_fuse_o_o_o < upper_bound:
+                                                        m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                        m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                        m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                        m = m_k_fuse//K_ko
+                                                        k = m_k_fuse%K_ko
+                                                        # select ping-pong buffer
+                                                        left = ((k_o_o+1)%2)*M_shared*K_ko_alignment + m*K_ko_alignment + k
+                                                        right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + K_ko + k
+                                                        A_shared[left] = A[right]
+                                # import pdb;pdb.set_trace()
+                                # rhs HBM -> L2
+                                nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                                for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                    for bs_threadIdx_z in range(block[2]): # 7
+                                        for bs_threadIdx_y in range(block[1]): # 4
+                                            for bs_threadIdx_x in range(block[0]): # 64
+                                                for n_k_fuse_i in range(vec): # 2
+                                                    n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                    n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                    n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                    n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                    n = n_k_fuse//K_ko
+                                                    k = n_k_fuse%K_ko
+                                                    left = n*K_ko_alignment + k
+                                                    right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                    B_shared[left] = B[right]
+
+                                for k_o_i in range(k_factor): # 8
+                                    for m_o in range(M//wmma_m): # 1
+                                        # lhs L2 -> L1
+                                        for mk_o in range(wmma_m*wmma_k//4): # 64
+                                            A_shared_local[((mk_o*4 + 0)//wmma_k)*K_m + ((mk_o*4 + 0)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 0)%wmma_k)]
+                                            A_shared_local[((mk_o*4 + 1)//wmma_k)*K_m + ((mk_o*4 + 1)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 1)%wmma_k)]
+                                            A_shared_local[((mk_o*4 + 2)//wmma_k)*K_m + ((mk_o*4 + 2)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 2)%wmma_k)]
+                                            A_shared_local[((mk_o*4 + 3)//wmma_k)*K_m + ((mk_o*4 + 3)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 3)%wmma_k)]
+
+                                        # rhs L2 -> L1
+                                        for nk_o in range(wmma_n*wmma_k//4): # 64
+                                            B_shared_local[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+
+
+                                        param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                        T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local,B_shared_local,T_local,param)
+                            # tail: calculate the last iteration without A_shared load
+                            k_o_o = k_o_o_iters
+                            # rhs HBM -> L2
+                            nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                            for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                for bs_threadIdx_z in range(block[2]): # 7
+                                    for bs_threadIdx_y in range(block[1]): # 4
+                                        for bs_threadIdx_x in range(block[0]): # 64
+                                            for n_k_fuse_i in range(vec): # 2
+                                                n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                n = n_k_fuse//K_ko
+                                                k = n_k_fuse%K_ko
+                                                left = n*K_ko_alignment + k
+                                                right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                B_shared[left] = B[right]
+
+                            for k_o_i in range(k_factor): # 8
+                                for m_o in range(M//wmma_m): # 1
+                                    # lhs L2 -> L1
+                                    for mk_o in range(wmma_m*wmma_k//4): # 64
+                                        A_shared_local_1[((mk_o*4 + 0)//wmma_k)*K_m + (mk_o*4 + 0)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 0)%wmma_k]
+                                        A_shared_local_1[((mk_o*4 + 1)//wmma_k)*K_m + (mk_o*4 + 1)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 1)%wmma_k]
+                                        A_shared_local_1[((mk_o*4 + 2)//wmma_k)*K_m + (mk_o*4 + 2)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 2)%wmma_k]
+                                        A_shared_local_1[((mk_o*4 + 3)//wmma_k)*K_m + (mk_o*4 + 3)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 3)%wmma_k]
+                                    # rhs L2 -> L1
+                                    for nk_o in range(wmma_n*wmma_k//4): # 64
+                                        B_shared_local_1[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+                                    param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                    T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local_1,B_shared_local_1,T_local,param)
+
+                            # # out L1 -> L2
+                            for mn_o in range(wmma_m*wmma_n//4): # 64
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 0)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 0)%wmma_n] = T_local[((mn_o*4 + 0)//wmma_n)*N + (mn_o*4 + 0)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 1)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 1)%wmma_n] = T_local[((mn_o*4 + 1)//wmma_n)*N + (mn_o*4 + 1)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 2)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 2)%wmma_n] = T_local[((mn_o*4 + 2)//wmma_n)*N + (mn_o*4 + 2)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 3)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 3)%wmma_n] = T_local[((mn_o*4 + 3)//wmma_n)*N + (mn_o*4 + 3)%wmma_n]
+
+                    # # out L2 -> HBM
+                    C_o_o_o = (M_shared*N_shared)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o): # 2
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M_shared,N_ori,N_shared,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+        res = np.reshape(T, (M_ori, N_ori))
+        return res
+
+
+    # =============================================================== #
+    #                       14 step14
+    # =============================================================== #
+    def step14(self, param):
+        print('code: step14')
+        mem = MEM()
+        shape, lhs, rhs, res, block_loop, block, wmma, vec, k_factor, alignment = param
+        M_ori, N_ori, K_ori = shape
+        AS_align = alignment[0]
+        BS_align = alignment[1]
+        CS_align = alignment[2] # storage_align(64, 128-1, 128)
+        wmma_m = wmma[0] # 16
+        wmma_n = wmma[1] # 16
+        wmma_k = wmma[2] # 16
+        # block=(64,4,7)
+        # calculate [64,112,2048] in 1 thread
+        M = block_loop[1]*block[1]*wmma_m # 1*4*16 = 64
+        N = block_loop[2]*block[2]*wmma_n # 1*7*16 = 112
+        K = K_ori
+        # grid=(BLOCK_X,BLOCK_X,BLOCK_Z)=(9,2,1)
+        BLOCK_X = N_ori//N # 1008/112 = 9
+        BLOCK_Y = M_ori//M # 128/64 = 2
+        BLOCK_Z = block_loop[2] # 1
+        print("grid(%d,%d,%d), block_loop(%d,%d,%d), block(%d,%d,%d)"%(BLOCK_X,BLOCK_Y,BLOCK_Z,block_loop[0],block_loop[1],block_loop[2],block[0],block[1],block[2]))
+        shape = max(M*K, N*K, M*N)
+
+        A = lhs.flatten()
+        B = rhs.flatten()
+        T = res.flatten()
+
+        M_shared = M # 64
+        M = M//block[1]
+        N_shared = N # 112
+        N = N//block[2]
+        N_alignment = ((N_shared + CS_align-1)//CS_align)*CS_align
+        
+        # A_shared = mem.new((M*K), "zero")
+        # B_shared = mem.new((N*K), "zero")
+        # T_shared = mem.new((M*N), "zero")
+        
+        for blockIdx_z in range(BLOCK_Z): # 1
+            for blockIdx_y in range(BLOCK_Y): # 4
+                T_local = mem.new((M*N), "zero") # 16*16 = 256
+                # how to reuse A_shared without compute_at
+                T_local_shared = mem.new((M_shared*N_alignment), "zero") # 32*256 = 8192
+                for blockIdx_x in range(BLOCK_X): # 7
+                    for threadIdx_y in range(block[1]): # 2
+                        for threadIdx_z in range(block[2]): # 9
+                            cf_ko_factor = K//wmma_k//k_factor # 2048//16//2 = 64
+                            K_ko = K//cf_ko_factor # 2048//64 = 32
+                            K_ko_alignment = ((K_ko + AS_align -1)//AS_align)*AS_align # 32
+                            A_shared = mem.new(2*M_shared*K_ko_alignment, "zero") # 2*32*32 = 2048
+                            B_shared = mem.new((N_shared*K_ko_alignment), "zero") # 144*32 = 4608
+                            K_m = K//cf_ko_factor//k_factor//(M//wmma_m) # 16
+                            A_shared_local = mem.new((2*M*K_m), "zero") # 256*2 = 512
+                            B_shared_local = mem.new((N*K_m), "zero") # 256
+                            # A_shared double buffer
+                            A_shared_local_1 = mem.new((2*M*K_m), "zero") # 256*2 = 512
+                            # shared_tail
+                            B_shared_local_1 = mem.new((N*K_m), "zero") # 256
+                            # shared_tail_local_body
+                            B_shared_local_2 = mem.new((N*K_m), "zero") # 256
+                            # shared_tail_local_tail
+                            B_shared_local_3 = mem.new((N*K_m), "zero") # 256
+                            # memset
+                            T_local = self.dense_broadcast()
+
+                            # shared_head: lhs HBM -> L2 iter0 for double buffer
+                            k_o_o = 0
+                            upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                            mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                            for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                for as_threadIdx_z in range(block[2]): # 7
+                                    for as_threadIdx_y in range(block[1]): # 4
+                                        for as_threadIdx_x in range(block[0]): # 64
+                                            for m_k_fuse_i in range(vec): # 1
+                                                m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                if m_k_fuse_o_o_o < upper_bound:
+                                                    m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                    m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                    m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                    m = m_k_fuse//K_ko
+                                                    k = m_k_fuse%K_ko
+                                                    left = m*K_ko_alignment + k
+                                                    right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + k
+                                                    A_shared[left] = A[right]
+                            # import pdb;pdb.set_trace()
+                            # shared_body: use A_shared double buffer
+                            k_o_o_iters = K//wmma_k//k_factor - 1 # 2048//16//2 - 1 = 64 - 1 = 63
+                            for k_o_o in range(k_o_o_iters): # 63.
+                                # lhs HBM -> L2
+                                upper_bound = (M_shared*K_ko)//vec//block[0]//block[1] # 16
+                                mk_o_o_o = ((upper_bound+block[2]-1)//block[2]) # 3
+                                for m_k_fuse_o_o_o_o in range(mk_o_o_o): # 3
+                                    for as_threadIdx_z in range(block[2]): # 7
+                                        for as_threadIdx_y in range(block[1]): # 4
+                                            for as_threadIdx_x in range(block[0]): # 64
+                                                for m_k_fuse_i in range(vec): # 1
+                                                    m_k_fuse_o_o_o = m_k_fuse_o_o_o_o*block[2] + as_threadIdx_z
+                                                    if m_k_fuse_o_o_o < upper_bound:
+                                                        m_k_fuse_o_o = m_k_fuse_o_o_o*block[1] + as_threadIdx_y
+                                                        m_k_fuse_o = m_k_fuse_o_o*block[0] + as_threadIdx_x
+                                                        m_k_fuse = m_k_fuse_o*vec + m_k_fuse_i
+                                                        m = m_k_fuse//K_ko
+                                                        k = m_k_fuse%K_ko
+                                                        # select ping-pong buffer
+                                                        left = ((k_o_o+1)%2)*M_shared*K_ko_alignment + m*K_ko_alignment + k
+                                                        right = blockIdx_y*M_shared*K + m*K + k_o_o*K_ko + K_ko + k
+                                                        A_shared[left] = A[right]
+                                # rhs HBM -> L2
+                                nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                                for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                    for bs_threadIdx_z in range(block[2]): # 7
+                                        for bs_threadIdx_y in range(block[1]): # 4
+                                            for bs_threadIdx_x in range(block[0]): # 64
+                                                for n_k_fuse_i in range(vec): # 2
+                                                    n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                    n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                    n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                    n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                    n = n_k_fuse//K_ko
+                                                    k = n_k_fuse%K_ko
+                                                    left = n*K_ko_alignment + k
+                                                    right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                    B_shared[left] = B[right]
+                                # local_head
+                                # 1st lhs L2 -> L1
+                                k_o_i = 0
+                                for mk_o in range(wmma_m*wmma_k//4): # 64
+                                    A_shared_local[((mk_o*4 + 0)//wmma_k)*K_m + ((mk_o*4 + 0)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 0)%wmma_k)]
+                                    A_shared_local[((mk_o*4 + 1)//wmma_k)*K_m + ((mk_o*4 + 1)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 1)%wmma_k)]
+                                    A_shared_local[((mk_o*4 + 2)//wmma_k)*K_m + ((mk_o*4 + 2)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 2)%wmma_k)]
+                                    A_shared_local[((mk_o*4 + 3)//wmma_k)*K_m + ((mk_o*4 + 3)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + ((mk_o*4 + 3)%wmma_k)]
+                                # local_body
+                                k_o_i_iters = k_factor - 1 # 2-1=1
+                                for k_o_i in range(k_o_i_iters): # 1
+                                    for m_o in range(M//wmma_m): # 1
+                                        # [1,k_o_i_iters] lhs L2 -> L1
+                                        for mk_o in range(wmma_m*wmma_k//4): # 64
+                                            A_shared_local[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 0)//wmma_k)*K_m + ((mk_o*4 + 0)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + ((mk_o*4 + 0)%wmma_k)]
+                                            A_shared_local[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 1)//wmma_k)*K_m + ((mk_o*4 + 1)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + ((mk_o*4 + 1)%wmma_k)]
+                                            A_shared_local[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 2)//wmma_k)*K_m + ((mk_o*4 + 2)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + ((mk_o*4 + 2)%wmma_k)]
+                                            A_shared_local[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 3)//wmma_k)*K_m + ((mk_o*4 + 3)%wmma_k)] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + ((mk_o*4 + 3)%wmma_k)]
+                                        # rhs L2 -> L1
+                                        for nk_o in range(wmma_n*wmma_k//4): # 64
+                                            B_shared_local[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                            B_shared_local[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+
+                                        param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                        T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local[(k_o_i%2)*M*K_m : (k_o_i%2)*M*K_m+M*K_m],B_shared_local,T_local,param)
+                                # local_tail
+                                k_o_i = k_o_i_iters
+                                for m_o in range(M//wmma_m): # 1
+                                    # rhs L2 -> L1
+                                    for nk_o in range(wmma_n*wmma_k//4): # 64
+                                        B_shared_local_1[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                        B_shared_local_1[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+
+                                    param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                    T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local[(k_o_i%2)*M*K_m : (k_o_i%2)*M*K_m+M*K_m],B_shared_local_1,T_local,param)
+                            # shared_tail: calculate the last iteration without A_shared load
+                            k_o_o = k_o_o_iters
+                            # rhs HBM -> L2
+                            nk_o_o_o = N_shared*K_ko//vec//block[0]//block[1]//block[2]
+                            for n_k_fuse_o_o_o_o in range(nk_o_o_o): # 4
+                                for bs_threadIdx_z in range(block[2]): # 7
+                                    for bs_threadIdx_y in range(block[1]): # 4
+                                        for bs_threadIdx_x in range(block[0]): # 64
+                                            for n_k_fuse_i in range(vec): # 2
+                                                n_k_fuse_o_o_o = n_k_fuse_o_o_o_o*block[2] + bs_threadIdx_z
+                                                n_k_fuse_o_o = n_k_fuse_o_o_o*block[1] + bs_threadIdx_y
+                                                n_k_fuse_o = n_k_fuse_o_o*block[0] + bs_threadIdx_x
+                                                n_k_fuse = n_k_fuse_o*vec + n_k_fuse_i
+                                                n = n_k_fuse//K_ko
+                                                k = n_k_fuse%K_ko
+                                                left = n*K_ko_alignment + k
+                                                right = blockIdx_x*N_shared*K + n*K + k_o_o*K_ko + k
+                                                B_shared[left] = B[right]
+                            # shared_tail_local_head
+                            # 1st lhs L2 -> L1
+                            k_o_i = 0
+                            for mk_o in range(wmma_m*wmma_k//4): # 64
+                                A_shared_local_1[((mk_o*4 + 0)//wmma_k)*K_m + (mk_o*4 + 0)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 0)%wmma_k]
+                                A_shared_local_1[((mk_o*4 + 1)//wmma_k)*K_m + (mk_o*4 + 1)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 1)%wmma_k]
+                                A_shared_local_1[((mk_o*4 + 2)//wmma_k)*K_m + (mk_o*4 + 2)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 2)%wmma_k]
+                                A_shared_local_1[((mk_o*4 + 3)//wmma_k)*K_m + (mk_o*4 + 3)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (mk_o*4 + 3)%wmma_k]
+                            # shared_tail_local_body
+                            k_o_i_iters = k_factor - 1 # 2-1=1
+                            for k_o_i in range(k_o_i_iters): # 2
+                                for m_o in range(M//wmma_m): # 1
+                                    # lhs L2 -> L1
+                                    for mk_o in range(wmma_m*wmma_k//4): # 64
+                                        A_shared_local_1[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 0)//wmma_k)*K_m + (mk_o*4 + 0)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + (mk_o*4 + 0)%wmma_k]
+                                        A_shared_local_1[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 1)//wmma_k)*K_m + (mk_o*4 + 1)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + (mk_o*4 + 1)%wmma_k]
+                                        A_shared_local_1[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 2)//wmma_k)*K_m + (mk_o*4 + 2)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + (mk_o*4 + 2)%wmma_k]
+                                        A_shared_local_1[((k_o_i+1)%2)*M*K_m + ((mk_o*4 + 3)//wmma_k)*K_m + (mk_o*4 + 3)%wmma_k] = A_shared[(k_o_o%2)*M_shared*K_ko_alignment + threadIdx_y*M*K_ko_alignment + ((mk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + K_m + (mk_o*4 + 3)%wmma_k]
+                                    # rhs L2 -> L1
+                                    for nk_o in range(wmma_n*wmma_k//4): # 64
+                                        B_shared_local_2[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                        B_shared_local_2[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                        B_shared_local_2[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                        B_shared_local_2[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+                                    param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                                    T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local_1[(k_o_i%2)*M*K_m : (k_o_i%2)*M*K_m+M*K_m],B_shared_local_2,T_local,param)
+                            # shared_tail_local_tail
+                            k_o_i = k_o_i_iters
+                            # rhs L2 -> L1
+                            for nk_o in range(wmma_n*wmma_k//4): # 64
+                                B_shared_local_3[((nk_o*4 + 0)//wmma_k)*K_m + (nk_o*4 + 0)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 0)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 0)%wmma_k]
+                                B_shared_local_3[((nk_o*4 + 1)//wmma_k)*K_m + (nk_o*4 + 1)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 1)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 1)%wmma_k]
+                                B_shared_local_3[((nk_o*4 + 2)//wmma_k)*K_m + (nk_o*4 + 2)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 2)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 2)%wmma_k]
+                                B_shared_local_3[((nk_o*4 + 3)//wmma_k)*K_m + (nk_o*4 + 3)%wmma_k] = B_shared[threadIdx_z*N*K_ko_alignment + ((nk_o*4 + 3)//wmma_k)*K_ko_alignment + k_o_i*K_m + (nk_o*4 + 3)%wmma_k]
+                            param = N,wmma_n,wmma_m,m_o,wmma_k,K_m
+                            T_local = self.llvm_matrix_mad_f32x4_f32x4(A_shared_local_1[(k_o_i%2)*M*K_m : (k_o_i%2)*M*K_m+M*K_m],B_shared_local_3,T_local,param)
+                            # # out L1 -> L2
+                            for mn_o in range(wmma_m*wmma_n//4): # 64
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 0)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 0)%wmma_n] = T_local[((mn_o*4 + 0)//wmma_n)*N + (mn_o*4 + 0)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 1)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 1)%wmma_n] = T_local[((mn_o*4 + 1)//wmma_n)*N + (mn_o*4 + 1)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 2)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 2)%wmma_n] = T_local[((mn_o*4 + 2)//wmma_n)*N + (mn_o*4 + 2)%wmma_n]
+                                T_local_shared[threadIdx_y*M*N_alignment + ((mn_o*4 + 3)//wmma_n)*N_alignment + threadIdx_z*N + (mn_o*4 + 3)%wmma_n] = T_local[((mn_o*4 + 3)//wmma_n)*N + (mn_o*4 + 3)%wmma_n]
+
+                    # # out L2 -> HBM
+                    C_o_o_o = (M_shared*N_shared)//vec//block[0]//block[1]//block[2]
+                    for m_n_fused_o_o_o_o in range(C_o_o_o): # 2
+                        for threadIdx_z in range(block[2]): # 7
+                            for threadIdx_y in range(block[1]): # 4
+                                for threadIdx_x in range(block[0]): # 64
+                                    param = m_n_fused_o_o_o_o,block,threadIdx_z,threadIdx_y,threadIdx_x,blockIdx_y,M_shared,N_ori,N_shared,blockIdx_x,N_alignment
+                                    self.ramp(T, T_local_shared, vec, param)
+        res = np.reshape(T, (M_ori, N_ori))
+        return res

@@ -374,18 +374,64 @@ def test():
     # util.check_result(res_std, res, " step11 ")
     # return
 
-    # =====================  12 step12  ===================== #
-    # s[CF].tensorize(cf_mi, intrin_bi_wmma_gemm((wmma_m, wmma_n, wmma_k),bi_wmma_compute, input_scope="local", strides_A=AF_stride, strides_B=BF_stride, strides_C=CF_stride,),)
+    # # =====================  12 step12  ===================== #
+    # # s[CF].tensorize(cf_mi, intrin_bi_wmma_gemm((wmma_m, wmma_n, wmma_k),bi_wmma_compute, input_scope="local", strides_A=AF_stride, strides_B=BF_stride, strides_C=CF_stride,),)
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(9,2,1)
+    # block = [64,4,7]
+    # wmma = [16,16,16]
+    # vec = 2
+    # k_factor = 8
+    # alignment = [136,136,128]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step12(param)
+    # util.check_result(res_std, res, " step12 ")
+    # return
+
+    # # =====================  13 step13  ===================== #
+    # # s[AS].double_buffer()
+    # # s[BS].double_buffer()
+    # res = mem.new(res_shape, "zero")
+    # block_loop = [1,1,1] # grid=(7,4,1)
+    # block = [64,2,9]
+    # wmma = [16,16,16]
+    # vec = 1
+    # k_factor = 2
+    # wmma_m = wmma[0] # 16
+    # wmma_n = wmma[1] # 16
+    # wmma_k = wmma[2] # 16
+    # offset = 0
+    # offsetCS = 0
+    # AS_align = k_factor*wmma_k + offset
+    # BS_align = k_factor*wmma_k + offset
+    # CS_align = block_loop[2]*block[2]*wmma_n + offsetCS
+    # alignment = [AS_align,BS_align,CS_align]
+    # param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
+    # res = dense.step13(param)
+    # util.check_result(res_std, res, " step13 ")
+    # return
+
+    # =====================  14 step14  ===================== #
+    # s[AS].double_buffer()
+    # s[BS].double_buffer()
     res = mem.new(res_shape, "zero")
-    block_loop = [1,1,1] # grid=(9,2,1)
-    block = [64,4,7]
+    block_loop = [1,1,1] # grid=(7,4,1)
+    block = [64,2,9]
     wmma = [16,16,16]
-    vec = 2
-    k_factor = 8
-    alignment = [136,136,128]
+    vec = 1
+    k_factor = 2
+    wmma_m = wmma[0] # 16
+    wmma_n = wmma[1] # 16
+    wmma_k = wmma[2] # 16
+    offset = 0
+    offsetCS = 0
+    AS_align = k_factor*wmma_k + offset
+    BS_align = k_factor*wmma_k + offset
+    CS_align = block_loop[2]*block[2]*wmma_n + offsetCS
+    alignment = [AS_align,BS_align,CS_align]
     param = tile_shape['o'], lhs, rhs, res, block_loop, block, wmma, vec, k_factor,alignment
-    res = dense.step12(param)
-    util.check_result(res_std, res, " step12 ")
+    res = dense.step14(param)
+    util.check_result(res_std, res, " step14 ")
     return
 
 if __name__ == '__main__':
