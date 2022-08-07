@@ -278,14 +278,14 @@ def Translating_into_High_level_Operators():
 
   def map_nn_relu_op(bb, node_map, node, nn_mod):
       A = node_map[node.args[0]]
-      return bb.emit(relax.op.relu(A))
+      return bb.emit(relax.op.nn.relu(A))
 
   def map_nn_linear_op(bb, node_map, node, nn_mod):
       x = node_map[node.args[0]]
       w = map_param(nn_mod.weight)
       if nn_mod.bias is not None:
           b = map_param(nn_mod.bias)
-      y = bb.emit(relax.op.dense(x, w))
+      y = bb.emit(relax.op.nn.dense(x, w))
       return bb.emit(relax.op.add(y, b))
 
   MLPModuleHighLevel = from_fx(
