@@ -1,11 +1,15 @@
 # This is needed for deferring annotation parsing in TVMScript
 from __future__ import annotations 
+import torch
+import torchvision
 
 import tvm
 from tvm.ir.module import IRModule
 from tvm.script import tir as T, relax as R
 from tvm import relax, topi
 import numpy as np
+import matplotlib.pyplot as plt
+import pickle as pkl
 
 def Pattern_Match_and_Rewriting():
   @tvm.script.ir_module
@@ -39,9 +43,8 @@ def Pattern_Match_and_Rewriting():
   # (Pdb) p binding.value
   # CallNode(Op(relax.multiply), [relax.expr.Var(0x2ea6840), relax.expr.Var(0x33cc5f0)], (nullptr), [])
 
-  from tvm.relax.expr_functor import mutator, PyExprMutator
-  @tvm.meta_schedule.mutator.mutator
-  class EwiseFMARewriter(ExprMutator):
+  @relax.expr_functor.mutator
+  class EwiseFMARewriter(relax.PyExprMutator):
     def visit_call_(self, call):
       call = self.visit_expr_post_order(call)
       add_op = tvm.ir.Op.get("relax.add")
@@ -61,13 +64,16 @@ def Pattern_Match_and_Rewriting():
       return fma_call
 
   updated_fn = EwiseFMARewriter().visit_expr(MyModule["main"])
+  print(" ---------- EwiseFMARewriter ---------- ")
   updated_fn.show()
+
   relax.analysis.remove_all_unused(updated_fn).show()
+  print(" ---------- remove_all_unused ---------- ")
+  updated_fn.show()
 
   return
 
 def Fuse_Linear_and_ReLU():
-  import pickle as pkl
   mlp_params = pkl.load(open("fasionmnist_mlp_params.pkl", "rb"))
 
   def create_model():
@@ -90,86 +96,89 @@ def Fuse_Linear_and_ReLU():
     return bb.get()
 
   MLPModel = create_model()
-  MLPModel.show()
+  # MLPModel.show()
 
   @relax.expr_functor.mutator
   class DenseAddFusor(relax.PyExprMutator):
-    def __init__(self, mod: IRModule) -> None:
-      super().__init__()
-      self.mod_ = mod
-      # cache pre-defined ops
-      self.add_op = tvm.ir.Op.get("relax.add")
-      self.dense_op = tvm.ir.Op.get("relax.nn.dense")
-      self.counter = 0
+      def __init__(self, mod: IRModule) -> None:
+          super().__init__()
+          self.mod_ = mod
+          # cache pre-defined ops
+          self.add_op = tvm.ir.Op.get("relax.add")
+          self.dense_op = tvm.ir.Op.get("relax.nn.dense")
+          self.counter = 0
 
-    def transform(self) -> IRModule:
-      for global_var, func in self.mod_.functions.items():
-        if not isinstance(func, relax.Function):
-          continue
-        # avoid already fused primitive functions
-        if "Primitive" in func.attrs.keys() and func.attrs["Primitive"] != 0:
-          continue
-        updated_func = self.visit_expr(func)
-        updated_func = relax.analysis.remove_all_unused(updated_func)
-        self.builder_.update_func(global_var, updated_func)
-      return self.builder_.get()
-
-    def visit_call_(self, call):
-      call = self.visit_expr_post_order(call)
-
-      def match_call(node, op):
-        if not isinstance(node, relax.Call):
-          return False
-        return node.op == op
+      def transform(self) -> IRModule:
+          for global_var, func in self.mod_.functions.items():
+              if not isinstance(func, relax.Function):
+                  continue
+              # avoid already fused primitive functions
+              if "Primitive" in func.attrs.keys() and func.attrs["Primitive"] != 0:
+                  continue
+              updated_func = self.visit_expr(func)
+              updated_func = relax.analysis.remove_all_unused(updated_func)
+              self.builder_.update_func(global_var, updated_func)
           
-        # pattern match dense => add
-        if not match_call(call, self.add_op):
-          return call
+          return self.builder_.get()
 
-        value = self.lookup_binding(call.args[0])
-        if value is None:
-          return call
+      def visit_call_(self, call):
+          call = self.visit_expr_post_order(call)
 
-        if not match_call(value, self.dense_op):
-          return call
+          def match_call(node, op):
+              if not isinstance(node, relax.Call):
+                  return False
+              return node.op == op
+            
+          # pattern match dense => add
+          if not match_call(call, self.add_op):
+              return call
 
-        x = value.args[0]
-        w = value.args[1]
-        b = call.args[1]
+          value = self.lookup_binding(call.args[0])
+          if value is None:
+              return call
 
-        # construct a new fused primitive function
-        param_x = relax.Var("x", x.shape_, x._checked_type_)
-        param_w = relax.Var("w", w.shape_, w._checked_type_)
-        param_b = relax.Var("b", b.shape_, b._checked_type_)
+          if not match_call(value, self.dense_op):
+              return call
 
-        bb = relax.BlockBuilder()
+          x = value.args[0]
+          w = value.args[1]
+          b = call.args[1]
 
-        fn_name = "fused_dense_add%d" % (self.counter)
-        self.counter += 1
-        with bb.function(fn_name, [param_x, param_w, param_b]):
-          with bb.dataflow():
-              lv0 = bb.emit(relax.op.nn.dense(param_x, param_w))
-              gv = bb.emit_output(relax.op.add(lv0, param_b))
-          bb.emit_func_output(gv)
+          # construct a new fused primitive function
+          param_x = relax.Var("x", x.shape_, x._checked_type_)
+          param_w = relax.Var("w", w.shape_, w._checked_type_)
+          param_b = relax.Var("b", b.shape_, b._checked_type_)
 
-        # Add Primitive attribute to the fused funtions
-        fused_fn = bb.get()[fn_name].with_attr("Primitive", 1)
-        global_var = self.builder_.add_func(fused_fn, fn_name)
+          bb = relax.BlockBuilder()
 
-        # construct call into the fused function
-        return relax.Call(global_var, [x, w, b], None, None)
+          fn_name = "fused_dense_add%d" % (self.counter)
+          self.counter += 1
+          with bb.function(fn_name, [param_x, param_w, param_b]):
+              with bb.dataflow():
+                  lv0 = bb.emit(relax.op.nn.dense(param_x, param_w))
+                  gv = bb.emit_output(relax.op.add(lv0, param_b))
+              bb.emit_func_output(gv)
+
+          # Add Primitive attribute to the fused funtions
+          fused_fn = bb.get()[fn_name].with_attr("Primitive", 1)
+          global_var = self.builder_.add_func(fused_fn, fn_name)
+
+          # construct call into the fused function
+          ret = relax.Call(global_var, [x, w, b], None, None)
+          return ret
 
   @tvm.ir.transform.module_pass(opt_level=2, name="DeseAddFuse")
   class FuseDenseAddPass:
-    """The wrapper for the LowerTensorIR pass."""
-    def transform_module(self, mod, ctx):
-      return DenseAddFusor(mod).transform()
+      """The wrapper for the LowerTensorIR pass."""
+      def transform_module(self, mod, ctx):
+          return DenseAddFusor(mod).transform()
+
 
   MLPFused = FuseDenseAddPass()(MLPModel)
-  MLPFused.show()
-  return
+  # MLPFused.show()
+  return MLPFused
 
-def Map_to_TensorIR_Calls():
+def Map_to_TensorIR_Calls(MLPFused):
   @relax.expr_functor.mutator
   class LowerToTensorIR(relax.PyExprMutator):
     def __init__(self, mod: IRModule, op_map) -> None:
@@ -178,7 +187,6 @@ def Map_to_TensorIR_Calls():
       self.op_map = {
           tvm.ir.Op.get(k): v for k, v in op_map.items()
       }
-
 
     def visit_call_(self, call):
       call = self.visit_expr_post_order(call)
@@ -220,12 +228,12 @@ def Map_to_TensorIR_Calls():
       return LowerToTensorIR(mod, op_map).transform()
 
   MLPModelTIR = LowerToTensorIRPass()(MLPFused)
-  MLPModelTIR.show()
-  MLPModelFinal = relax.transform.FuseTIR()(MLPModelTIR)
-  MLPModelFinal.show()
+  # print(" ---------- LowerToTensorIRPass ---------- ")
+  # MLPModelTIR.show()
 
-  import torch
-  import torchvision
+  MLPModelFinal = relax.transform.FuseTIR()(MLPModelTIR)
+  # print(" ---------- FuseTIR ---------- ")
+  # MLPModelFinal.show()
 
   test_data = torchvision.datasets.FashionMNIST(
       root="data",
@@ -239,7 +247,6 @@ def Map_to_TensorIR_Calls():
 
   img, label = next(iter(test_loader))
   img = img.reshape(1, 28, 28).numpy()
-  import matplotlib.pyplot as plt
 
   plt.figure()
   plt.imshow(img[0])
@@ -263,7 +270,7 @@ def Map_to_TensorIR_Calls():
 
 if __name__ == '__main__':
   Pattern_Match_and_Rewriting()
-  # Fuse_Linear_and_ReLU()
-  # Map_to_TensorIR_Calls()
+  MLPFused = Fuse_Linear_and_ReLU()
+  Map_to_TensorIR_Calls(MLPFused)
 
 
