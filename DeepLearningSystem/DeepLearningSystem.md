@@ -1,5 +1,6 @@
 # Algorithms and Implementation
   - https://dlsyscourse.org/
+    - https://dlsyscourse.org/lectures/
   - Carnegie Mellon University
 
 ---
