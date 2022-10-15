@@ -11,10 +11,21 @@ TENSOR_COUNTER = 0
 # NOTE: we will numpy as the array_api
 # to backup our computations, this line will change in later homeworks
 
+# use numpy
 import numpy as array_api
+
 NDArray = numpy.ndarray
+
+# use backend_ndarray
+from . import backend_ndarray as array_api
+from .backend_ndarray import all_devices, cuda, cpu, cpu_numpy, BackendDevice as Device
+
+NDArray = array_api.NDArray
+
+
 class Device:
     """Indicates the device supporting an NDArray."""
+
 
 class CPUDevice(Device):
     """Represents data that sits in CPU"""
@@ -31,20 +42,15 @@ class CPUDevice(Device):
     def enabled(self):
         return True
 
+
 def cpu():
     """Return cpu device"""
     return CPUDevice()
 
+
 def all_devices():
     """return a list of all available devices"""
     return [cpu()]
-
-
-from . import backend_ndarray as array_api
-from .backend_ndarray import all_devices, cuda, cpu, cpu_numpy, BackendDevice as Device
-
-NDArray = array_api.NDArray
-
 
 
 class Op:

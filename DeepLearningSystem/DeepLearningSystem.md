@@ -4,6 +4,11 @@
   - Carnegie Mellon University
 
 ---
+
+- HW1: How to scratch auto differentiation library
+- HW2: Leverage a numpy linear backward
+- HW3: build hardware library to replace numpy
+
 ---
 
 # Lecture 1 - Introduction and Logistics
