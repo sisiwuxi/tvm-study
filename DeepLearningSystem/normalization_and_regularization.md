@@ -103,17 +103,15 @@ imply that the models will overfit the training set, and not generalize well
 
 ## Regularization
 - Regularization is the process of “limiting the complexity of the function class” in order to ensure that networks will generalize better to new data; typically occurs in two ways in deep learning
-- Implicit regularization refers to the manner in which our existing algorithms (namely
-SGD) or architectures already limit functions considered
+- Implicit regularization refers to the manner in which our existing algorithms (namely SGD) or architectures already limit functions considered
   - E.g., we aren’t actually optimizing over “all neural networks”, we are optimizing over all neural networks considered by SGD, with a given weight initialization
-  - easy to over-fitting
+  - can easily over-fitting
 - Explicit regularization refers to modifications made to the network and training
 procedure explicitly intended to regularize the network
 
 ## ℓ2 Regularization a.k.a. weight decay
-- Classically, the magnitude of a model’s parameters are often a reasonable proxy
-for complexity, so we can minimize loss while also keeping parameters small
-minimize
+- Classically, the magnitude of a model’s parameters are often a reasonable proxy for complexity, so we can minimize loss while also keeping parameters small 
+  - easy to control
 
 $$ \min_{W_{1:D}} \frac1m \sum_{i=1}^{m} l(h_{W_{1:D}(x^{(i)})}, y^{(i)}) + \frac{\lambda}{2} \sum_{i=1}^D ||W_i||_2^2 $$
 
