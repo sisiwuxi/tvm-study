@@ -122,6 +122,7 @@ after
 
 6
 llvm
+- limitation: complex dependencies
   -funroll-loops
   -fno-unroll-loops
   -mllvm -unroll-max-count
@@ -131,6 +132,8 @@ llvm
   -mllvm -unroll-remainder
   -Rpass=loop-unroll
   -Rpass-missed=loop-unroll
+
+7
 progma
   #pragma clang loop unroll(enable)
   #pragma clang loop unroll(full)
@@ -365,6 +368,94 @@ void test_pragma(){
   printf("%d\n", sum);
 }
 
+
+void test_vector_1() {
+  const int N=512;
+  double A[N][N], B[N][N], C[N][N];
+  int i,j,k;
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j++){
+      A[i][j] = 1.0;
+      B[i][j] = 2.0;
+      C[i][j] = 3.0;
+    }
+  }
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j++){
+      A[i][j] = A[i][j] + B[i][j]*C[i][j];
+    }
+  }
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j++){
+      printf("%f\n", A[i][j]);
+    }
+  }
+}
+
+// #include<x86intrin.h>
+#include<immintrin.h>
+void test_vector_2() {
+  register __m256d ymm3, ymm4, ymm5;
+  const int N=512;
+  double A[N][N], B[N][N], C[N][N];
+  int i,j,k;
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j++){
+      A[i][j] = 1.0;
+      B[i][j] = 2.0;
+      C[i][j] = 3.0;
+    }
+  }
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j+=4){
+      ymm3 = _mm256_load_pd(A[i]+j);
+      ymm4 = _mm256_load_pd(B[i]+j);
+      ymm5 = _mm256_load_pd(C[i]+j);
+      ymm4 = _mm256_mul_pd(ymm4,ymm5);
+      ymm3 = _mm256_add_pd(ymm3,ymm4);
+      _mm256_store_pd((A[i]+j),ymm3);
+    }
+  }
+}
+
+void test_vector_3() {
+  register __m256d ymm3, ymm4, ymm5, ymm6;
+  const int N=512;
+  double A[N][N], B[N][N], C[N][N];
+  int i,j,k;
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j++){
+      A[i][j] = 1.0;
+      B[i][j] = 2.0;
+      C[i][j] = 3.0;
+    }
+  }
+  for(i=1; i<N; i++){
+    for(j=1; j<N; j+=8){ // 4*2
+      ymm3 = _mm256_load_pd(A[i]+j);
+      ymm4 = _mm256_load_pd(B[i]+j);
+      ymm5 = _mm256_load_pd(C[i]+j);
+      ymm4 = _mm256_mul_pd(ymm4,ymm5);
+      ymm6 = _mm256_add_pd(ymm3,ymm4); // add ymm6
+      _mm256_store_pd((A[i]+j), ymm6);
+      ymm3 = _mm256_load_pd(A[i]+j+4);
+      ymm4 = _mm256_load_pd(B[i]+j+4);
+      ymm5 = _mm256_load_pd(C[i]+j+4);
+      ymm4 = _mm256_mul_pd(ymm4,ymm5);
+      ymm6 = _mm256_add_pd(ymm3,ymm4);
+      _mm256_store_pd((A[i]+j+4), ymm6);
+    }
+  }
+} 
+
+void test_vector(){
+  // gcc loop_unroll.c -march=native
+  test_vector_1();
+  test_vector_2();
+  test_vector_3();
+}
+
+
 int main() {
   // test_original();
   // test_unroll_inner_2();
@@ -372,5 +463,6 @@ int main() {
   // test_unroll_inner_8();
   // test_unroll_inner_16();
   // test_llvm_unroll_loops();
-  test_pragma();
+  // test_pragma();
+  test_vector();
 }
