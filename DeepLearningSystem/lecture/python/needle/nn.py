@@ -6,7 +6,6 @@ from needle import ops
 import needle.init as init
 import numpy as np
 
-
 class Parameter(Tensor):
     """A special kind of tensor that represents parameters."""
 
@@ -69,12 +68,20 @@ class Linear(Module):
         self.in_features = in_features
         self.out_features = out_features
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight = Tensor(np.random.normal(0, 1, (out_features, in_features)))
+        if bias==True:
+            self.bias = Tensor(np.random.normal(0, 1, (out_features)))
+        else:
+            self.bias = Tensor(None)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # r1 = ops.transpose(self.weight, axes=(0, 1))
+        # r2 = ops.matmul(x, r1)
+        # r3 = ops.add(r2 + self.bias)
+        # return r3
+        return x.numpy() @ self.weight.numpy() + self.bias.numpy()
         ### END YOUR SOLUTION
 
 
@@ -95,7 +102,9 @@ class Sequential(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for module in self.modules:
+            x = module(x)
+        return x
         ### END YOUR SOLUTION
 
 
