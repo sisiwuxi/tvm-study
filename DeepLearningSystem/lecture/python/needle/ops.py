@@ -212,7 +212,8 @@ class Transpose(TensorOp):
             last = self.axes[-1]
             self.axes[-1] = self.axes[-2]
             self.axes[-2] = last
-        return array_api.transpose(a, self.axes)
+        # return array_api.transpose(a, self.axes)
+        return a.numpy().transpose(self.axes)
 
     def gradient(self, out_grad, node):
         lhs, = node.inputs
@@ -232,7 +233,9 @@ class Reshape(TensorOp):
         self.shape = shape
 
     def compute(self, a):
-        return array_api.reshape(a, self.shape)
+        # return array_api.reshape(a, self.shape)
+        # return a.numpy().reshape(self.shape)
+        return a.reshape(self.shape)
 
     def gradient(self, out_grad, node):
         lhs, = node.inputs

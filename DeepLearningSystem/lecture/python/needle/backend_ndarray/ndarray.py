@@ -222,6 +222,9 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
+        import pdb;pdb.set_trace()
+        assert np.prod(self.shape) == np.prod(new_shape)
+        ret = NDArray.make([new_shape], device=self.device)
         raise NotImplementedError()
         ### END YOUR SOLUTION
 

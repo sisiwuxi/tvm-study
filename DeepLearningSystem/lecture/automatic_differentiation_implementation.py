@@ -415,10 +415,10 @@ def test_logsoftmax():
 
 def test_my_solution():
   # test_power_scalar()
-  test_divide()
-  test_divide_scalar()
+  # test_divide()
+  # test_divide_scalar()
   # test_transpose()
-  # test_reshape()
+  test_reshape()
   # test_broadcast_to()
   # test_summation()
   # test_matmul()
