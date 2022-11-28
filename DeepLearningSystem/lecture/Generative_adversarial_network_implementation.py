@@ -27,7 +27,7 @@ def Generator_network_G(data):
   import pdb;pdb.set_trace()
   linear_layer = nn.Linear(2, 2)
   model_G = nn.Sequential(linear_layer)
-  fake_data_init = sample_G(model_G, 3200) # 2000
+  fake_data_init = sample_G(model_G, 3200)
   plt.scatter(data[:,0], data[:,1], color="blue", label="real data")
   plt.scatter(fake_data_init[:,0], fake_data_init[:,1], color="red", label="G(z) at init")
   plt.legend()
@@ -54,7 +54,6 @@ def update_G(Z, model_G, model_D, loss_D, opt_G):
   fake_Y = model_D(fake_X)
   batch_size = Z.shape[0]
   ones = ndl.ones(batch_size, dtype="int32")
-  # ones = ndl.ones(batch_size, 2, dtype="int32")
   loss = loss_D(fake_Y, ones)
   loss.backward()
   opt_G.step()
@@ -82,9 +81,7 @@ def train_gan(model, data, batch_size, num_epochs):
   assert data.shape[0] % batch_size == 0
   for epoch in range(num_epochs):
     begin = (batch_size * epoch) % data.shape[0]
-    # X = ndl.Tensor(data[begin: begin+batch_size, :])
     X = data[begin: begin+batch_size, :]
-    # Z = ndl.Tensor(np.random.normal(0, 1, (batch_size, 2)))
     Z = np.random.normal(0, 1, (batch_size, 2))
     X = ndl.Tensor(X)
     Z = ndl.Tensor(Z)
@@ -148,7 +145,6 @@ def Modularizing_GAN():
   def train_gan(data, batch_size, num_epochs):
       assert data.shape[0] % batch_size == 0
       for epoch in range(num_epochs):
-          opt_G.reset_grad()
           begin = (batch_size * epoch) % data.shape[0]
           X = data[begin: begin+batch_size, :]
           Z = np.random.normal(0, 1, (batch_size, 2))
@@ -160,7 +156,6 @@ def Modularizing_GAN():
           opt_G.step()
 
   train_gan(data, 32, 2000)
-
   fake_data_trained = sample_G(model_G, 3200)
 
   plt.scatter(data[:,0], data[:,1], color="blue", label="real data")

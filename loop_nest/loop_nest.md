@@ -516,6 +516,21 @@
     }
   }
   ```
+  - access
+  ```
+    ------> i
+    |
+    |   A[1][1] = A[0][1], A[2][1] = A[1][1], A[3][1] = A[2][1], 
+    |   A[1][2] = A[0][2], A[2][2] = A[1][2], A[3][2] = A[2][2], 
+    |   A[1][3] = A[0][3], A[2][3] = A[1][3], A[3][3] = A[2][3], 
+    |
+   \|/
+  
+    j
+
+  ```
+  - read and write are not sequential
+
   - after
   ```c
   for(int i=1; i<M; i++>) {
@@ -524,6 +539,21 @@
     }
   }
   ```
-  - after swap, the innermost not carry dependency, so the statement can do parallel
-  - A[1][1] = A[0][1], A[2][1] = A[1][1], A[3][1] = A[2][1], 
-  - A[1][2] = A[0][2], A[2][2] = A[1][2], A[3][2] = A[2][2], 
+  - access
+  ```
+    ------> j
+    |
+    |   A[1][1] = A[0][1], A[1][2] = A[0][2], A[1][3] = A[0][3], 
+    |   A[2][1] = A[1][1], A[2][2] = A[1][2], A[2][3] = A[1][3], 
+    |   A[3][1] = A[2][1], A[3][2] = A[2][2], A[3][3] = A[2][3], 
+    |
+   \|/
+  
+    i
+
+  ```
+  - read and write ares sequential
+  - after swap, the innermost not carry dependency, so the statement can do vectorize and parallel
+
+## legality
+- It is illegal to do loop permute on an endpoint with dependency
