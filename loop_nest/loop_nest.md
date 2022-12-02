@@ -557,3 +557,233 @@
 
 ## legality
 - It is illegal to do loop permute on an endpoint with dependency
+- Do not cause dependency inversion
+- before
+  ```
+  for(j=1; j<N; j++)
+    for (i=1; i<N; i++)
+      A[i][j+1] = A[i+1][j] + 2;
+  ```
+  - access
+  ```
+     ------> i
+    |
+    |   A[1][2] = A[2][1]+2, A[2][2] = A[3][1]+2, A[3][2] = A[3][1]+2,
+    |                        /                    /
+    |                      \//                  \//
+    |   A[1][3] = A[2][2]+2, A[2][3] = A[3][2]+2, A[3][3] = A[3][2]+2,
+    |                       /                    /
+    |                     \//                  \// 
+    |   A[1][4] = A[2][3]+2, A[2][4] = A[3][3]+2, A[3][4] = A[3][3]+2,
+    |
+   \|/
+  
+    j
+
+  ```
+
+- after
+  ```
+  for (i=1; i<N; i++)
+    for(j=1; j<N; j++)
+      A[i][j+1] = A[i+1][j] + 2;
+  ```
+  - access
+  ```
+     ------> i
+    |
+    |   A[1][2] = A[2][1]+2, A[2][2] = A[3][1]+2, A[3][2] = A[3][1]+2,
+    |                     //\                  //\
+    |                     /                    /
+    |   A[1][3] = A[2][2]+2, A[2][3] = A[3][2]+2, A[3][3] = A[3][2]+2,
+    |                     //\                  //\ 
+    |                     /                    /
+    |   A[1][4] = A[2][3]+2, A[2][4] = A[3][3]+2, A[3][4] = A[3][3]+2,
+    |
+   \|/
+  
+    j
+
+  ```
+## llvm
+- -mllvm -enable-loopinterchange
+- gcc: -floop-interchange
+- llvm-project/llvm/test/Transforms/LoopInterchange
+
+
+---
+
+# loop invariance
+- Loop invariants refer to variables whose values do not change in the loop iteration space
+- Therefore, it can be mentioned outside of the loop and calculated only once to avoid repeated calculation in the loop
+
+## example
+- before
+```
+  for (int i=1; i<N; i++)
+    for (int j=1; j<M; j++)
+      U[i] = U[i] + W[i]*W[i]*D[j]/(dt*dt);
+```
+- after
+```
+  T1 = 1/(dt*dt)
+  for (int i=1; i<N; i++) {
+    T2 = W[i]*W[i]
+    for (int j=1; j<M; j++)
+      U[i] = U[i] + T2*D[j]*T1;
+  }
+```
+
+## legality
+- The transformation cannot affect the semantics of the source program
+
+## pros
+- Reduced the calculation strength
+
+## cons
+- Not too much computation reduction
+- Need occupancy a private register for the variance that moved outside of the loop, so decrease the number of register which the inner loop can used
+
+## llvm
+- clang loop_invariance.c -O1 -Rpass=licm
+- algorithm
+  - Determine cycle
+    - calculate the header node, the dominate node and the define node
+    - find out the loop nest
+    - find out the exit block which have successor out of the loop
+  - Match the conditions and moving out of the loop
+    - is loop invariance
+    - be located in the dominate exit block
+    - be located in the basic block in all compute block in the dominated loop 
+    - this variane evaluated once
+  - DFS
+    - adopt the depth first algorithm to search and select it from candidates
+    - if all the invariance have been moved outside, then move curent invariance to the preheader block
+
+- loop structure in llvm ir
+  - header
+    - iteration times, decide to start and stop
+  - rest of loop
+    - compute in the loop
+  - exit
+    - other caompute after loop
+  - preheader
+    - pre executed code
+    - The only successor of this block is the header block of the loop
+
+- dominate
+  ```
+     s1 x1   s2 x2   s3 x3
+        \     |     /
+         \    |    /
+          \   |   /
+      s4 Y4=sigma(x1,x2,x3)
+              |
+             \|/
+            s5 Y5
+  ```
+  - single output node
+  - when the program run at Y4, the program in x1 has been run, so x1 is a dominate node
+  - example of can not moving out
+  ```
+    s1: A=B
+    s2: B=C+1
+  ```
+  - A valued one time
+  - S2 is not dominate S1, so cannot moving
+
+## example
+- before
+```
+          start
+            |-------
+           \|/     |
+          x=y+1    |  header
+           /\      |
+          /  \     |
+        a=2  a=3   |
+          \  /     |
+           \/      |
+         z=x+1     |
+           |--------  
+          \|/
+          exit
+```
+- after
+```
+        x=y+1, z=x+1    preheader
+            |
+           \|/
+          start
+            |-------
+           \|/     |
+           ...     |  header
+           /\      |
+          /  \     |
+        a=2  a=3   |
+          \  /     |
+           \/      |
+          ...      |
+           |--------  
+          \|/
+          exit
+```
+
+## example ir
+- before
+```
+  define void @func(i32 %d) {
+  Entry:
+    br label %Loop
+  Loop:
+    %j = phi i32 [ 0, %Entry ],[ %Sum, %Loop]
+    %loopinvar = add i32 %i, 12
+    %Sum = add i32 %j, %loopinvar
+    %cond = icmp eq i32 %Sum, 0
+    br i1 %cond, label %Exit, label %Loop
+  Exit:
+    ret void
+  }
+```
+- after
+```
+  define void @func(i32 %d) {
+  Entry:
+    %loopinvar = add i32 %i, 12
+    br label %Loop
+  Loop:
+  ;preds = %Loop, %Entry
+    %j = phi i32 [ 0, %Entry ],[ %Sum, %Loop]
+    %Sum = add i32 %j, %loopinvar
+    %cond = icmp eq i32 %Sum, 0
+    br i1 %cond, label %Exit, label %Loop
+  Exit:
+  ;preds = %Loop
+    ret void
+  }
+```
+- opt loop_invariance.ll -licm -S -o loop_invariance_opt.ll
+```
+  ; ModuleID = 'loop_invariance.ll'
+  source_filename = "loop_invariance.ll"
+
+  define void @func(i32 %i) {
+  Entry:
+    %loopinvar = add i32 %i, 12
+    br label %Loop
+
+  Loop:                                             ; preds = %Loop, %Entry
+    %j = phi i32 [ 0, %Entry ], [ %Sum, %Loop ]
+    %Sum = add i32 %j, %loopinvar
+    %cond = icmp eq i32 %Sum, 0
+    br i1 %cond, label %Exit, label %Loop
+
+  Exit:                                             ; preds = %Loop
+    ret void
+  }
+```
+
+## llvm compare
+- clang loop_invariance.c -O1 -Rpass=licm
+- clang -emit-llvm -S 1.cpp -fno-discard-value-names
+- clang -O1 -emit-llvm -S 1.cpp -fno-discard-value-names -o 1-opt.ll
