@@ -6,6 +6,9 @@
 - LSTMs
 - Beyond "simple" sequential models
 
+# reference
+- https://github.com/dlsyscourse/public_notebooks/blob/main/rnn_implementation.ipynb
+
 # Sequence modeling
 
 ## Sequence modeling tasks
@@ -308,3 +311,172 @@ static int indicate_policy(void)
     - y_2 depend on x_1 and x_2
   - allows for essentially dependence in prediction sequence that is not just causal
     - y_2 is not just depend on x_1 and x_2, but also depent on x_3 
+
+# Implementing recurrent networks
+- Unlike convolutional networks (which required us to implement a new kind of operation), recurrent networks in theory are quite straightforward to implement: although the particular details of the "cell" for a more complex recurrent network like an LSTM seem a bit complex, it is ultimately just a collection of operators that are fairly easy to chain together in a automatic differentiation tool. However, there are a number of considerations to keep in mind when implementing recurrent networks efficiently, most steming from the fact that they are fundamentally sequential models. This means that, unlike the "normal" deep network, where we think of all operations being "easily" parallelizable over a batch of data, the data input to an LSTM need to be fed in one at a time: we cannot process the second element in a sequence until we process the first, etc.
+
+# Implementing the LSTM cell
+- One thing we pointed out in the notes, which I want to highlight here, is that matrices behind the LSTM cell are not as complex as they look. Let's look at a typical equation for an LSTM cell as it's usually written in document or papers, in this case from the PyTorch docs: https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html.
+
+- $ i_t = \sigma (W_{ii}x_i + b_{ii} + W_{hi}h_{t-1} + b_{hi}) $
+- $ f_t = \sigma (W_{if}x_t + b_{if} + W_{hf}h_{t-1} + b_{hf}) $
+- $ g_t = tanh (W_{ig}x_t + b_{ig} + W_{hg}h_{t-1} + b_{hg}) $
+- $ o_t = \sigma (W_{io}x_t + b_{io} + W_{ho}h_{t-1} + b_{ho}) $
+- $ c_t = f_t \odot c_{t-1} + i_t \odot g_t $
+- $ h_t = o_t \odot tanh(c_t) $
+  - where 
+    - h_t is the hidden state at time t
+    - c_t is the cell state at time t
+    - x_t is the input at time t
+    - h_{t-1} is the hidden state of the layer at time t-1 or the initial hidden state at time 0
+    - i_t, f_t, g_t, o_t are the input, forget, cell, and output gates, respectively
+    - \sigmaσ is the sigmoid function, and \odot is the Hadamard product.
+
+- Those equations look awful confusing (plus they have the wrong indices in the subscripts for the  terms). But the first things to realize, which I emphasized in the notes, is that there aren't actually 8 different weights: there are two different weight. You should think of the vector
+- $ \begin{bmatrix}
+    i \\
+    f \\
+    g \\
+    o \\
+   \end{bmatrix}
+  $
+  [400]
+- not four separate vectors, but as a single vector that just happens to be four times the length of the hidden unit, i.e., we really have the update
+ 
+- $ \begin{bmatrix}
+    i \\
+    f \\
+    g \\
+    o \\
+   \end{bmatrix} = 
+   \begin{bmatrix}
+    \sigma \\
+    \sigma \\
+    tanh \\
+    \sigma \\
+   \end{bmatrix}* (W_{hh}h_{t-1} + W_{hx}x_t + b)
+  $
+  - W_{hi}[400,100]
+  - h_{t-1}[100]
+  - W_{hx}[400,20]
+
+ 
+- (where I'm unilaterally deciding to get rid of the odd choice to have two different bias terms, and relabeling the subscripts on  properly).
+
+- This is how PyTorch does it internally anyway, as you can see if you inspect the actual class.
+
+## Batching efficiently
+- Everything works above, but if you looked a bit closer at the example above, you might have noticed some pretty odd tensor sizes. We had to pass a tensor of size (50,1,20) to the PyTorch LSTM to get a similar result as for our own (more intuitively-sized?) function. What's happening here?
+
+- The basic issue is that, as mentioned above, the LSTM as we implemented it in our own function is inherently sequential: we need to run the lstm_cell call for time t=1 before we move to time t=2, before time t=3, etc, because the hidden unit computed at time t=1 becomes is input to time t=2. But each lstm_cell call operation as performed above is fundamentally a matrix-vector operation, and as we have seen many times before, we'd ideally like to turn this into a matrix-matrix operation so as to perform more efficient compuation.
+
+- So, just like for the case of the MLP, for example, we're going to employ mini-batches to achieve this computational efficiency. But the key point is that the examples in these minibatches cannot be from the same sequence: they need to be from multiple different sequences (or often, in practice, from locations far apart in a single sequence).
+
+- The form of batched samples for LSTMs
+- Once we move to minibactches of samples, each with a number of timesteps (we'll assume each sample has the same number of timesteps for now, but this will be dealt with shortly), then we need to store input that has a batch, time, and input dimension. Most naturally, this would look something like the following:
+
+  - X[NUM_BATCHES][NUM_TIMESTEPS][INPUT_SIZE]
+  - X[:,t,:], that would not be contiguous in memory
+
+- which we could call NTC format (this isn't all that common for LSTMs, but it's analogous to the NHWC format we discussed for images). However, PyTorch natively uses the "TNC" format for LSTMs, that is, it stores the tensor in the order:
+
+  - X[NUM_TIMESTEPS][NUM_BATCHES][INPUT_SIZE]
+  - X[t,:,:]
+
+- Why does it do this? The batch dimension is always first in any other setting in PyTorch, and indeed there's even now an option to use this "batch first" format for LSTMs, though it isn't the default.
+
+- The reason is due to memory locality. In order to effectively batch the operations of an LSTM into matrix-matrix product form, we want to perform the matrix multiplications
+
+ - $ \begin{bmatrix}
+    I \\
+    F \\
+    G \\
+    O \\
+   \end{bmatrix} = 
+   \begin{bmatrix}
+    \sigma \\
+    \sigma \\
+    tanh \\
+    \sigma \\
+   \end{bmatrix}* (XW_{hi} + HW_{hh} + b)
+  $
+ 
+ 
+  - where we're considering  here to be an  matrix, and  to be  where  is the hidden dimension (we're also implicitly transposing the matrices from their forms above ... this is why PyTorch lists them as  in the docs, even though that's not really correct for the vector form it's showing).
+
+  - But in order to have each  and  (over all batches, for a single timestep) be contiguous in memory, we need to use the THC ordering and then select X[t] and H[t] as the relevant indices. Let's see how this looks in an implementation.
+
+
+
+- If we were to store the matrices in NTC(X[NUM_TIMESTEPS][NUM_BATCHES][INPUT_SIZE]) ordering, and e.g., using the matrix multiplication we will consider in Homework 3, where matrices need to be compact in memory before performing multiplication, we would have to be copying memory around during each update. The TNC format fixes this (and even if we were to develop a more efficient multiplication strategy that could directly consider strided matrices, the NTC format would still sacrifice memory locality). PyTorch (and needle, as you will implement on Homework 4) will thus the TNC route, and sacrifice a few people being confused the first time they use LSTMs.
+
+## Packed sequences
+- There is still one substantial problem with the approach above: the tensor form requires that each sequence in the batch be the same size. This is often explicitly not the case for RNNs, where e.g., one may want to use an RNN to process individual sentences of text, individual audio signals, etc. A large benefit of the RNN for these settings is that the sequences can all be different lengths, yet an RNN can process them all similarly. Thus, we have a common setting where the different sequences in a minibatch might be different lengths.
+
+- One "simple" way to deal with this is simply to zero-pad the input sequences to the size of the longest sequence. That is, we can place all the sequences in a single X[MAX_TIMESTEPS][BATCH][DIMENION], replace all inputs that occur after the end of each sequence with zeros, and then after-the-fact extract the hidden unit representation at the effective end of each sequence (or at all valid points in the sequence). Since this takes advantage of "full, equal sized" matrix multiplications at each step, this is reasonable solution for it's simplicity).
+
+- However, if the sequences in a batch are very different sizes, it should be acknowledged that this can ultimately be inefficient to run all the operations of the LSTM on what amount to a lot of meaningless data full of just zeros. To get around this, an alternative is to support "packed sequences". This represents the input as a 2D tensor
+
+  - X[sum_batch TIMESTEPS(batch)][DIMENSION]
+  
+  - that lumps together elements in both the batch and time dimensions.
+
+- In order to still exploit contiguous memory, we still want to group together elements by timestep, so this format contains first all inputs for all sequences at time 1 (they will all exist here across all samples), followed by all inputs for all sequences at time 2 (only for those that actually exist), etc. Then, in addition, there needs to be a int time_indexes[MAX_TIMESTEPS] variable that points to the starting index of the batch for each timestep.
+
+- We won't include the code to do this here, as it involves a bit more bookkeeping to keep everything in place, but it should be apparent that for the cost of a bit more additional indexing, you can run the LSTM on only those portions of a sequence that actually exist. Whether or not this is ultimately beneficial depends on how much you're able to saturate the compute hardware at the later "sparser" stages of the processing.
+
+
+## Training LSTMs: Truncated BPTT and hidden repackaging
+- Now that we have covered the basics of LSTM creation, we're going to briefly mention how to train these systems in practice. As this involves actually running the LSTM code in a autodiff tool, we're going to instead just include pseudo-code for these ideas here, but you'll implement them within needle for the final homework.
+
+- First, we should emphasize one main point, that the majority of implementing training in a recurrent neural network "just" involves running the RNN under an automatic differentiation tool, and using autodiff to find the gradient of all parameters with respect to some loss. That is, using roughly the notation from the above (i.e., with the lstm call that run over an entire (batch of) sequences, we could summarize the training procedure as the following:
+  ```
+    def train_lstm(X, Y, h0, c0, parameters)
+      H, cn = lstm(X, h0, c0, parameters)
+      l = loss(H, Y)
+      l.backward()
+      opt.step()
+  ```
+- For a multi-layer LSTM, we actually have some choice in determinining in what "order" we run it: do we run a full layer first (over all time), and then iterate over depth? Or do we run all depth first for a single time step, and then iterate over time? While both are options, it's conceptually simpler (because we can re-use the same function above) to follow the first option, i.e., to just run each LSTM over the full sequence and then iterate over layers, i.e.,
+  ```
+  def train_lstm(X, Y, h0, c0, parameters)
+    H = X
+    for i in range(depth):
+        H, cn = lstm(H, h0[i], c0[i], parameters[i])
+    l = loss(H, Y)
+    l.backward()
+    opt.step()
+  ```
+- This training process (for both single and multi-layer cases) is known as "backpropagation through time" (BPTT), as we're essentially doing backprop (but automatically via the autodiff framework) over each time step in the sequence.
+
+
+## Long sequences and truncated BPTT
+- The process above works fine conceptually, but what happens in the case that we have a very long sequence? For instance, in many language modeling tasks the true underlying sequence could be a document with thousands of words or audio signals that span many minutes. Trying to train all of these in a "single" pass of BPTT would be:
+- Computationally/memory-wise infeasible (because we have to keep the whole computation graph in memory over the entire sequence).
+- Inefficient for learning. Just like batch gradient descent is inefficient from a learning standpoint relative to SGD, taking a single gradient step for an entire sequence is very inefficient from a learning perspective: we - have to do a ton of work to get a single parameter update.
+Thus, the simple solution is just to divide the sequence in multiple shorter blocks. That is, we train the the LSTM on segments of the full sequence. This could look something like the following.
+```
+  for i in range(0,X.shape[0],BLOCK_SIZE):
+    h0, c0 = zeros()
+    train_lstm(X[i:i+BLOCK_SIZE], Y[i:i+BLOCK_SIZE], 
+               h0, c0, parameters)
+```
+- This works, and "solves" the problem of long sequence lengths. But it is also unsatisfying: we got rid of long sequences by just chopping them into shorter sequences. And this ignores the fact that it is precisely the long term dependencies (beyond BLOCK_SIZE) that are often most interesting in sequence models, i.e., language models that "remember" the general context of the words they are generating, etc.
+
+## Hidden repackaging
+- The way around this is to use what is called "hidden repackaging". At the end of running an LSTM on a sequence, we have the final hidden units (hidden and cell units) of the LSTM. These embed the "current" state of the system, in a way. We can't continue to continue to differentiate through these variables in the autodiff graph, but we can input their raw values as the  and  variables into the LSTM run on the next chunk of data. To do this, we'd want to adjust our LSTM training code to return these variables, but detached from their gradients.
+```
+  def train_lstm(X, Y, h0, c0, parameters)
+    H, cn = lstm(X, h0, c0, parameters)
+    l = loss(H, Y)
+    l.backward()
+    opt.step()
+    return H[-1].data, cn.data
+```
+- We then use these values (instead of zeros), as the initial state of the LSTM in subsequent training loops.
+```
+  h0, c0 = zeros()
+  for i in range(0,X.shape[0],BLOCK_SIZE):
+    h0, c0 = train_lstm(X[i:i+BLOCK_SIZE], Y[i:i+BLOCK_SIZE], h0, c0, parameters)
+```
+- It's important to emphasize that this process is still running truncated BPTT, as we're only computing gradients through a small portion of the full sequence. But it's somewhat of a "middle ground" between doing full BPTT and always re-initializing the initial hidden states to zeros: the future LSTM states can get information from longer term context from the LSTM, and can use this to make its predictions of the future. But it cannot assess how changing the parameters of the LSTM would have changed this past initial state.
