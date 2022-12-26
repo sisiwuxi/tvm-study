@@ -43,7 +43,9 @@ def all_devices():
 
 
 class Op:
-    """Operator definition."""
+    """Operator definition.
+    Op: An operator in a compute graph. Operators need to define their "forward" pass in the compute() method (i.e., how to compute the operator on the underlying data of the Value objects), as well as their "backward" pass via the gradient() method, which defines how to multiply by incoming output gradients. The details of writing such operators will be given below.
+    """
 
     def __call__(self, *args):
         raise NotImplementedError()
@@ -97,7 +99,9 @@ class Op:
 
 
 class TensorOp(Op):
-    """ Op class specialized to output tensors, will be alternate subclasses for other structures """
+    """ Op class specialized to output tensors, will be alternate subclasses for other structures 
+    TensorOp: This is a subclass for Op for operators that return Tensors. All the operations you implement for this assignment will be of this type.
+    """
 
     def __call__(self, *args):
         return Tensor.make_from_op(self, args)
@@ -111,7 +115,9 @@ class TensorTupleOp(Op):
 
 
 class Value:
-    """A value in the computational graph."""
+    """A value in the computational graph.
+    Value: A value computed in a compute graph, i.e., either the output of some operations applied to other Value objects, or a constant (leaf) Value objects We use a generic class here (which we then specialize to e.g. Tensors), in order to allow for other data structures in later version of needle, but for now you will interact with this class mostly through its subclass Tensor (see below).
+    """
 
     # trace of computational graph
     op: Optional[Op]
@@ -215,6 +221,9 @@ class TensorTuple(Value):
 
 
 class Tensor(Value):
+    """
+    Tensor: This is a subclass of Value that corresponds to an actual tensor output, i.e., a multi-dimensional array within a computation graph. All of your code for this assignment (and most of the following) will use this subclass of Value rather than the generic class above. We have provided several convenience functions (e.g., operator overloading) that let you operate on tensor using normal Python conventions, but these will not work properly until you implement the corresponding operations.
+    """
     grad: "Tensor"
 
     def __init__(
@@ -397,10 +406,25 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     # Traverse graph in reverse topological order given the output_node that we are taking gradient wrt.
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
-
+    for node in reverse_topo_order:
+        # print(node, node.op)
+        # current output_grad = sum(gradient of each node)
+        output_grad = sum_node_list(node_to_output_grads_list[node])
+        node.grad = output_grad
+        if node.op == None:
+            continue
+        # Assign gradient to the relative node of forward-propagation
+        input_grads_list = node.op.gradient(output_grad, node)
+        import pdb;pdb.set_trace()
+        for i in range(len(node.inputs)):
+            if node.inputs[i] not in node_to_output_grads_list:
+                node_to_output_grads_list[node.inputs[i]] = []
+            # if isinstance(input_grads_list, needle.TensorTuple):
+            #     node_to_output_grads_list[node.inputs[i]].append(input_grads_list)
+            # else:
+            #     node_to_output_grads_list[node.inputs[i]].append(input_grads_list[i])
+            node_to_output_grads_list[node.inputs[i]].append(input_grads_list)
+    return
 
 def find_topo_sort(node_list: List[Value]) -> List[Value]:
     """Given a list of nodes, return a topological sort list of nodes ending in them.
@@ -410,17 +434,23 @@ def find_topo_sort(node_list: List[Value]) -> List[Value]:
     after all its predecessors are traversed due to post-order DFS, we get a topological
     sort.
     """
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
-
+    visited = set()
+    topo_order = []
+    for node in node_list:
+        topo_sort_dfs(node, visited, topo_order)
+    return topo_order
 
 def topo_sort_dfs(node, visited, topo_order):
-    """Post-order DFS"""
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
-
+    """Post-order DFS(Depth First Search)"""
+    if node in visited:
+        return
+    visited.add(node)
+    for n in node.inputs:
+        topo_sort_dfs(n, visited, topo_order)
+    # if node.op != None:
+    #     topo_order.append(node)
+    topo_order.append(node)
+    return
 
 ##############################
 ####### Helper Methods #######

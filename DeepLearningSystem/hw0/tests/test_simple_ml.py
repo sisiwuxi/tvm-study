@@ -30,8 +30,8 @@ def submit_add():
 ### TESTS/SUBMISSION CODE FOR parse_mnist()
 
 def test_parse_mnist():
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     assert X.dtype == np.float32
     assert y.dtype == np.uint8
     assert X.shape == (60000,784)
@@ -45,8 +45,8 @@ def test_parse_mnist():
 
 
 def submit_parse_mnist():
-    X,y = parse_mnist("data/t10k-images-idx3-ubyte.gz",
-                      "data/t10k-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/t10k-images-idx3-ubyte.gz",
+                      "../data/t10k-labels-idx1-ubyte.gz")
     mugrade.submit(X.dtype)
     mugrade.submit(y.dtype)
     mugrade.submit(X.shape)
@@ -59,8 +59,8 @@ def submit_parse_mnist():
 ### TESTS/SUBMISSION CODE FOR softmax_loss()
 
 def test_softmax_loss():
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     np.random.seed(0)
 
     Z = np.zeros((y.shape[0], 10))
@@ -70,8 +70,8 @@ def test_softmax_loss():
 
 
 def submit_softmax_loss():
-    X,y = parse_mnist("data/t10k-images-idx3-ubyte.gz",
-                      "data/t10k-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/t10k-images-idx3-ubyte.gz",
+                      "../data/t10k-labels-idx1-ubyte.gz")
     np.random.seed(0)
     mugrade.submit(softmax_loss(np.zeros((y.shape[0], 10)),y))
     mugrade.submit(softmax_loss(np.random.randn(y.shape[0], 10),y))
@@ -92,8 +92,8 @@ def test_softmax_regression_epoch():
 
 
     # test multi-steps on MNIST
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     theta = np.zeros((X.shape[1], y.max()+1), dtype=np.float32)
     softmax_regression_epoch(X[:100], y[:100], theta, lr=0.1, batch=10)
     np.testing.assert_allclose(np.linalg.norm(theta), 1.0947356, 
@@ -101,8 +101,8 @@ def test_softmax_regression_epoch():
 
 
 def submit_softmax_regression_epoch():
-    X,y = parse_mnist("data/t10k-images-idx3-ubyte.gz",
-                      "data/t10k-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/t10k-images-idx3-ubyte.gz",
+                      "../data/t10k-labels-idx1-ubyte.gz")
 
     theta = np.zeros((X.shape[1], y.max()+1), dtype=np.float32)
     softmax_regression_epoch(X[:100], y[:100], theta, lr=0.2, batch=100)
@@ -134,8 +134,8 @@ def test_nn_epoch():
     np.testing.assert_allclose(dW2.reshape(10,3), W2_0-W2, rtol=1e-4, atol=1e-4)
 
     # test full epoch
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     np.random.seed(0)
     W1 = np.random.randn(X.shape[1], 100).astype(np.float32) / np.sqrt(100)
     W2 = np.random.randn(100, 10).astype(np.float32) / np.sqrt(10)
@@ -149,8 +149,8 @@ def test_nn_epoch():
 
 
 def submit_nn_epoch():
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
 
     np.random.seed(1)
     W1 = np.random.randn(X.shape[1], 100).astype(np.float32) / np.sqrt(100)
@@ -183,8 +183,8 @@ def test_softmax_regression_epoch_cpp():
 
 
     # test multi-steps on MNIST
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     theta = np.zeros((X.shape[1], y.max()+1), dtype=np.float32)
     softmax_regression_epoch_cpp(X[:100], y[:100], theta, lr=0.1, batch=10)
     np.testing.assert_allclose(np.linalg.norm(theta), 1.0947356, 
@@ -192,8 +192,8 @@ def test_softmax_regression_epoch_cpp():
 
 
 def submit_softmax_regression_epoch_cpp():
-    X,y = parse_mnist("data/t10k-images-idx3-ubyte.gz",
-                      "data/t10k-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/t10k-images-idx3-ubyte.gz",
+                      "../data/t10k-labels-idx1-ubyte.gz")
 
     theta = np.zeros((X.shape[1], y.max()+1), dtype=np.float32)
     softmax_regression_epoch_cpp(X[:100], y[:100], theta, lr=0.2, batch=100)

@@ -554,8 +554,8 @@ def test_softmax_loss_ndl():
     # test backward pass for log
     gradient_check(ndl.log, ndl.Tensor(1 + np.random.rand(5,4)))
 
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     np.random.seed(0)
     Z = ndl.Tensor(np.zeros((y.shape[0], 10)).astype(np.float32))
     y_one_hot = np.zeros((y.shape[0], 10))
@@ -576,8 +576,8 @@ def submit_softmax_loss_ndl():
     np.random.seed(0)
     mugrade.submit(gradient_check(ndl.log, ndl.Tensor(1 + np.random.rand(5, 4))))
 
-    X,y = parse_mnist("data/t10k-images-idx3-ubyte.gz",
-                      "data/t10k-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/t10k-images-idx3-ubyte.gz",
+                      "../data/t10k-labels-idx1-ubyte.gz")
 
     y_one_hot = np.zeros((y.shape[0], 10))
     y_one_hot[np.arange(y.size), y] = 1
@@ -621,8 +621,8 @@ def test_nn_epoch_ndl():
     np.testing.assert_allclose(dW2.reshape(10,3), W2_0-W2.numpy(), rtol=1e-4, atol=1e-4)
 
     # test full epoch
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     np.random.seed(0)
     W1 = ndl.Tensor(np.random.randn(X.shape[1], 100).astype(np.float32) / np.sqrt(100))
     W2 = ndl.Tensor(np.random.randn(100, 10).astype(np.float32) / np.sqrt(10))
@@ -636,8 +636,8 @@ def test_nn_epoch_ndl():
 
 
 def submit_nn_epoch_ndl():
-    X,y = parse_mnist("data/train-images-idx3-ubyte.gz",
-                      "data/train-labels-idx1-ubyte.gz")
+    X,y = parse_mnist("../data/train-images-idx3-ubyte.gz",
+                      "../data/train-labels-idx1-ubyte.gz")
     np.random.seed(1)
     W1 = ndl.Tensor(np.random.randn(X.shape[1], 100).astype(np.float32) / np.sqrt(100))
     W2 = ndl.Tensor(np.random.randn(100, 10).astype(np.float32) / np.sqrt(10))
