@@ -488,3 +488,74 @@ def gradient(out):
       -s_is_j, & i \ne j
     \end{cases}
   $$
+
+## Xavier uniform
+- $ U(-a, a) $
+- $ a = gain * \sqrt{\frac{6}{fan\_in + fan\_out}} $
+
+## Xavier normal
+- $ N(0, std^2) $
+- $ std = gain * \sqrt{\frac{2}{fan\_in + fan\_out}} $
+
+## Kaiming uniform
+- $ U(-bound, bound) $
+- $ bound = gain * \sqrt{\frac{3}{fan\_in}} $
+  - $ gain = \sqrt{2} $
+
+## Kaiming normal
+- $ N(0, std^2) $
+- $ std = gain / \sqrt{fan\_in} $
+  - $ gain = \sqrt{2} $
+
+## LogSumExp
+- forward
+  - $ LogSumExp(x) = log(\sum_{i}exp(z_i - max(x))) + max(x) $
+- backward
+  - $ LogSumExp(x) = log(\sum_{i}exp(z_i)) $
+  - $ \frac{\partial LogSumExp(x)}{\partial z_j} = \frac{exp(z_i)}{\sum_{i}exp(z_i)} = exp(z_i-\sum_{i}exp(z_i)) = p_j $
+  - $ \frac{\partial L}{\partial x} = o_g * \frac{\partial LogSumExp(x)}{\partial x} = o_g * p_j $
+
+## SoftmaxLoss
+- forward
+- backward
+  - $ l_{softmax}(z,y) = log \sum_{i=1}^k (exp(z_i - z_y)) $
+
+## LayerNorm1d
+- $ y = w * \frac{x_i - E[x]}{(Var[x] + \epsilon)^{\frac12}} + b $
+
+## Flatten
+- shape[s1,s2,...,sn] -> shape[s1,s2*...*sn]
+
+## BatchNorm1d
+- training
+  - $ y = w * \frac{x_i - E[x]}{(Var[x] + \epsilon)^{\frac12}} + b $
+- test
+  - $ y = w * \frac{x - \hat{\mu}}{(\sigma^2 + \epsilon)^{\frac12}} + b $
+- average
+  - $ x_{\hat{new}} = (1-m)x_{\hat{old}} + mx_{observed} $
+
+## Dropout
+- training
+  - $ \hat{z}_{i+1} = \sigma_i (W_i^T z_i + b_i)(z_{i+1})_j 
+  = \begin{cases}
+      \frac{(\hat z_{i+1})_j}{1-p} \ with\ probability\ 1-p\\
+      0\  with\ probability\ p
+    \end{cases} $
+
+## Residual
+- $ y = F(x) + x $
+
+# data
+```
+import cv2
+img = cv2.imread('1.jpg')
+img_bgr = img[:, :, ::-1]
+img_hor = img[:, ::-1, :]
+img_ver = img[::-1, :, :]
+
+cv2.imshow('rgb', img)
+```
+- img[:, ::-1, :]: reverse H, horizontal flip
+- img[::-1, :, :]: reverse W, vertical flip
+- img[:, :, ::-1]: BGR -> RGB
+- ![](./pictures/data.PNG)

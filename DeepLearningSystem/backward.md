@@ -48,14 +48,15 @@
 ---
 
 # op
+- $ o_g $ means the output gradient
 ## EWiseAdd
 - compute
   - $ f(x,y) = x + y $
 - gradient
   - $ \frac{\partial f(x,y)}{\partial x} = 1 $
-
   - $ \frac{\partial L}{\partial x} = \frac{\partial L}{\partial f(x,y)} \frac{\partial f(x,y)}{\partial x} = \frac{\partial L}{\partial f(x,y)} = o_g $
 
+  - $ \frac{\partial f(x,y)}{\partial y} = 1 $
   - $ \frac{\partial L}{\partial y} = \frac{\partial L}{\partial f(x,y)} \frac{\partial f(x,y)}{\partial y} = \frac{\partial L}{\partial f(x,y)} = o_g $
 
 ## AddScalar
@@ -130,7 +131,9 @@
 - compute
   - f(x, shape) = broadcast_to(a, shape)
 - gradient
-  - a_g = sum(o_g)
+  - a_g = sum(o_g)/c
+    - c = 1 
+    - c *= input.shape
 
 ## Summation
 - compute
@@ -144,7 +147,18 @@
     - a[m,k]
     - b[k,n]
     - f[m,n]
+    - broadcast(x, y.shape) * y
+    - x * broadcast(y, x.shape)
+
 - gradient
+  - $ \frac{\partial f(a,b)}{\partial a} = b $
+  
+  - $ \frac{\partial L}{\partial a} = \frac{\partial L}{\partial f(a,b)} \frac{\partial f(a,b)}{\partial a} = \frac{\partial L}{\partial f(a,b)} y^T = o_g y^T $
+
+  - $ \frac{\partial f(a,b)}{\partial b} = a $
+
+  - $ \frac{\partial L}{\partial b} = x^T \frac{\partial L}{\partial f(a,b)} \frac{\partial f(a,b)}{\partial b} = \frac{\partial L}{\partial f(a,b)} = x^T o_g $
+
   - a_g = matmul(o_g, b.T)
     - o_g[m,n]
     - b.T[n,k]

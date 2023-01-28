@@ -2,6 +2,8 @@
 
 ## reference
 - https://blog.csdn.net/wuzhongqiang/article/details/107653655
+- http://doraemonzzz.com/2022/10/17/2022-10-17-Deep-Learning-Systems-HW1/#Question-5-Softmax-loss
+- https://github.com/YuanchengFang/dlsys_solution/blob/master/
 
 - <font color=red>No matter how the shape changes, the underlying buffer remains unchanged</font>
   - buffer is a one-dimensional array that never changes
