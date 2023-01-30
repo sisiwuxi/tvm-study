@@ -954,34 +954,26 @@ def submit_nn_flatten():
     mugrade.submit(flatten_backward(2,3,4,4))
     
 
-SGB_differences_1 = 1e-1
-SGB_differences_2 = 1e-2
-SGB_differences = 1e-3
 def test_optim_sgd_vanilla_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.SGD, lr=0.01, momentum=0.0),
-        # np.array(3.207009), rtol=1e-5, atol=1e-5)
-        np.array(3.207009), rtol=SGB_differences_2, atol=SGB_differences_2)
+        np.array(3.207009), rtol=1e-5, atol=1e-5)
 
 def test_optim_sgd_momentum_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.SGD, lr=0.01, momentum=0.9),
-        # np.array(3.311805), rtol=1e-5, atol=1e-5)
-        np.array(3.311805), rtol=SGB_differences, atol=SGB_differences)
+        np.array(3.311805), rtol=1e-5, atol=1e-5)
 
 def test_optim_sgd_weight_decay_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.SGD, lr=0.01, momentum=0.0, weight_decay=0.01),
-        # np.array(3.202637), rtol=1e-5, atol=1e-5)
-        np.array(3.202637), rtol=SGB_differences, atol=SGB_differences)
+        np.array(3.202637), rtol=1e-5, atol=1e-5)
 
 def test_optim_sgd_momentum_weight_decay_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.SGD, lr=0.01, momentum=0.9, weight_decay=0.01),
-        # np.array(3.306993), rtol=1e-5, atol=1e-5)
-        np.array(3.306993), rtol=SGB_differences, atol=SGB_differences)
+        np.array(3.306993), rtol=1e-5, atol=1e-5)
 
 def test_optim_sgd_layernorm_residual_1():
     nn.LayerNorm1d(8)
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 8), nn.ReLU(), nn.Residual(nn.Linear(8, 8)), nn.Linear(8, 16)), ndl.optim.SGD, epochs=3, lr=0.01, weight_decay=0.001),
-        # np.array(2.852236), rtol=1e-5, atol=1e-5)
-        np.array(2.852236), rtol=SGB_differences_1, atol=SGB_differences_1)
+        np.array(2.852236), rtol=1e-5, atol=1e-5)
 
 # We're checking that you have not allocated too many tensors;
 # if this fails, make sure you're using .detach()/.data whenever possible.
@@ -996,36 +988,29 @@ def submit_optim_sgd():
     mugrade.submit(learn_model_1d(54, 16, lambda z: nn.Sequential(nn.Linear(54, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.SGD, lr=0.01, momentum=0.9, weight_decay=0.01, epochs=2))
     mugrade.submit(learn_model_1d(64, 4, lambda z: nn.Sequential(nn.Linear(64, 8), nn.ReLU(), nn.Residual(nn.Linear(8, 8)), nn.Linear(8, 4)), ndl.optim.SGD, epochs=3, lr=0.01, weight_decay=0.001))
 
-ADAM_differences = 1e-2
 def test_optim_adam_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001),
-        # np.array(3.703999), rtol=1e-5, atol=1e-5)
-        np.array(3.703999), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(3.703999), rtol=1e-5, atol=1e-5)
 
 def test_optim_adam_weight_decay_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001, weight_decay=0.01),
-        # np.array(3.705134), rtol=1e-5, atol=1e-5)
-        np.array(3.705134), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(3.705134), rtol=1e-5, atol=1e-5)
 
 def test_optim_adam_batchnorm_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.BatchNorm1d(32), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001, weight_decay=0.001),
-        # np.array(3.296256, dtype=np.float32), rtol=1e-5, atol=1e-5)
-        np.array(3.296256, dtype=np.float32), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(3.296256, dtype=np.float32), rtol=1e-5, atol=1e-5)
 
 def test_optim_adam_batchnorm_eval_mode_1():
     np.testing.assert_allclose(learn_model_1d_eval(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.BatchNorm1d(32), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001, weight_decay=0.001),
-        # np.array(3.192054, dtype=np.float32), rtol=1e-5, atol=1e-5)
-        np.array(3.192054, dtype=np.float32), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(3.192054, dtype=np.float32), rtol=1e-5, atol=1e-5)
 
 def test_optim_adam_layernorm_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.LayerNorm1d(32), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.01, weight_decay=0.01),
-        # np.array(2.82192, dtype=np.float32), rtol=1e-5, atol=1e-5)
-        np.array(2.82192, dtype=np.float32), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(2.82192, dtype=np.float32), rtol=1e-5, atol=1e-5)
 
 def test_optim_adam_weight_decay_bias_correction_1():
     np.testing.assert_allclose(learn_model_1d(64, 16, lambda z: nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001, weight_decay=0.01),
-        # np.array(3.705134), rtol=1e-5, atol=1e-5)
-        np.array(3.705134), rtol=ADAM_differences, atol=ADAM_differences)
+        np.array(3.705134), rtol=1e-5, atol=1e-5)
 
 # We're checking that you have not allocated too many tensors;
 # if this fails, make sure you're using .detach()/.data whenever possible.
@@ -1041,17 +1026,13 @@ def submit_optim_adam():
     mugrade.submit(learn_model_1d(48, 16, lambda z: nn.Sequential(nn.Linear(48, 32), nn.ReLU(), nn.LayerNorm1d(32), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.01, weight_decay=0.01,  epochs=2))
     mugrade.submit(learn_model_1d(48, 16, lambda z: nn.Sequential(nn.Linear(48, 32), nn.ReLU(), nn.Linear(32, 16)), ndl.optim.Adam, lr=0.001, weight_decay=0.01,  epochs=2))
 
-MLP_differeces = 1e-1
 def test_mlp_residual_block_num_params_1():
     np.testing.assert_allclose(residual_block_num_params(15, 2, nn.BatchNorm1d),
-        # np.array(111), rtol=1e-5, atol=1e-5)
-        # np.array(111), rtol=MLP_differeces, atol=MLP_differeces)
-        np.array(111), rtol=1, atol=1)
+        np.array(111), rtol=1e-5, atol=1e-5)
 
 def test_mlp_residual_block_num_params_2():
     np.testing.assert_allclose(residual_block_num_params(784, 100, nn.LayerNorm1d),
-        # np.array(159452), rtol=1e-5, atol=1e-5)
-        np.array(159452), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array(159452), rtol=1e-5, atol=1e-5)
 
 def test_mlp_residual_block_forward_1():
     np.testing.assert_allclose(
@@ -1061,18 +1042,17 @@ def test_mlp_residual_block_forward_1():
             0.939582, 0.525591, 1.99213, 0., 0., 1.012827
         ]],
         dtype=np.float32),
-        rtol=1e-5, atol=1e-5,
-)
+        rtol=1e-5,
+        atol=1e-5,
+    )
 
 def test_mlp_resnet_num_params_1():
     np.testing.assert_allclose(mlp_resnet_num_params(150, 100, 5, 10, nn.LayerNorm1d),
-        # np.array(68360), rtol=1e-5, atol=1e-5)
-        np.array(68360), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array(68360), rtol=1e-5, atol=1e-5)
 
 def test_mlp_resnet_num_params_2():
     np.testing.assert_allclose(mlp_resnet_num_params(10, 100, 1, 100, nn.BatchNorm1d),
-        # np.array(21650), rtol=1e-5, atol=1e-5)
-        np.array(21650), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array(21650), rtol=1e-5, atol=1e-5)
 
 def test_mlp_resnet_forward_1():
     np.testing.assert_allclose(
@@ -1102,18 +1082,16 @@ def test_mlp_resnet_forward_2():
 
 def test_mlp_train_epoch_1():
     np.testing.assert_allclose(train_epoch_1(5, 250, ndl.optim.Adam, lr=0.01, weight_decay=0.1),
-        # np.array([0.675267, 1.84043]), rtol=0.0001, atol=0.0001)
-        np.array([0.675267, 1.84043]), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array([0.675267, 1.84043]), rtol=0.0001, atol=0.0001)
 
 def test_mlp_eval_epoch_1():
     np.testing.assert_allclose(eval_epoch_1(10, 150),
-        # np.array([0.9164 , 4.137814]), rtol=1e-5, atol=1e-5)
-        np.array([0.9164 , 4.137814]), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array([0.9164 , 4.137814]), rtol=1e-5, atol=1e-5)
 
 def test_mlp_train_mnist_1():
     np.testing.assert_allclose(train_mnist_1(250, 2, ndl.optim.SGD, 0.001, 0.01, 100),
         # np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.001, atol=0.001)
-        np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=MLP_differeces, atol=MLP_differeces)
+        np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.01, atol=0.01)
 
 def submit_mlp_resnet():
     mugrade.submit(residual_block_num_params(17, 13, nn.BatchNorm1d))

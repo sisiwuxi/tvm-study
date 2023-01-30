@@ -4,6 +4,15 @@
 - https://blog.csdn.net/wuzhongqiang/article/details/107653655
 - http://doraemonzzz.com/2022/10/17/2022-10-17-Deep-Learning-Systems-HW1/#Question-5-Softmax-loss
 - https://github.com/YuanchengFang/dlsys_solution/blob/master/
+- https://blog.csdn.net/weixin_43889476/article/details/123794879
+  - sudo sh cuda_8.0.61_375.26_linux.run
+  - ~/.bashrc
+  - tar zxvf cudnn-8.0-linux-x64-v7.1.tgz
+    - sudo cp cuda/include/cudnn.h /usr/local/cuda-8.0/include/
+    - sudo cp cuda/lib64/libcudnn* /usr/local/cuda-8.0/lib64/
+    - sudo chmod a+r /usr/local/cuda-8.0/include/cudnn.h 
+  - nvcc -V
+
 
 - <font color=red>No matter how the shape changes, the underlying buffer remains unchanged</font>
   - buffer is a one-dimensional array that never changes

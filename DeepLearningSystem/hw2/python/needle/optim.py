@@ -32,11 +32,20 @@ class SGD(Optimizer):
             # NOTE: param.grad maybe None
             if param.grad is None:
                 continue 
-            
+
             # NOTE: self.weight_decay don't need to * 2
-            grad_data = ndl.Tensor(param.grad.numpy(), dtype='float32').data + self.weight_decay * param.data       
+            grad_data = ndl.Tensor(param.grad.numpy(), dtype='float32').data + self.weight_decay * param.data
+            grad_data = ndl.Tensor(param.grad.numpy(), dtype='float32')
+            grad_data = grad_data.data + self.weight_decay * param.data
             self.u[i] = self.momentum * self.u[i] + (1 - self.momentum) * grad_data
             param.data = param.data - self.lr * self.u[i]
+
+            # import pdb;pdb.set_trace()
+            # grad_data = param.grad + self.weight_decay * param.data
+            # self.u[i] = self.momentum * self.u[i] + (1 - self.momentum) * grad_data
+            # weight = ndl.Tensor(param.data.numpy(), dtype='float64')
+            # weight = weight - self.lr * self.u[i]
+            # param.data = ndl.Tensor(weight.numpy(), dtype='float32')
         ### END YOUR SOLUTION
 
 

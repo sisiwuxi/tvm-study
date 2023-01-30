@@ -91,36 +91,46 @@ class Linear(Module):
         self.out_features = out_features
 
         ### BEGIN YOUR SOLUTION
-        self.weight = Parameter(init.kaiming_uniform(in_features, out_features, requires_grad=True))
-        if bias:
-            self.bias = Parameter(init.kaiming_uniform(out_features, 1, requires_grad=True))
+        # self.weight = Parameter(init.kaiming_uniform(in_features, out_features, requires_grad=True))
+        # if bias:
+        #     self.bias = init.kaiming_uniform(out_features, 1, requires_grad=True)
+        #     self.bias = self.bias.reshape((1, out_features))
+        #     self.bias = Parameter(self.bias)
+        # else:
+        #     self.bias = None
+        self.use_bias = bias
+        self.weight = Parameter(init.kaiming_uniform(in_features, out_features))
+        if self.use_bias:
+            self.bias = init.kaiming_uniform(out_features, 1)
             self.bias = self.bias.reshape((1, out_features))
-        else:
-            self.bias = None
+            self.bias = Parameter(self.bias, device=device, dtype=dtype)
+        # else:
+        #     self.bias = None
         ### END YOUR SOLUTION
+
+    # def forward(self, X: Tensor) -> Tensor:
+    #     ### BEGIN YOUR SOLUTION
+    #     linear = X @ self.weight
+    #     if self.bias:
+    #         return linear + self.bias.broadcast_to(linear.shape)
+    #     else:
+    #         return linear
 
     def forward(self, X: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        # y = ops.matmul(X, self.weight)
-        # if self.bias:
-        #     bias = ops.broadcast_to(self.bias, y.shape)
-        #     return y + bias
-        # else:
-        #     return y
-        if len(X.shape) > len(self.weight.shape) \
-            and X.shape[-1] != self.weight.shape[0]:
-                if len(X.shape) == 4 and \
-                    X.shape[1]*X.shape[2]*X.shape[3] == self.weight.shape[0]:
-                    tform = nn.Flatten()
-                    X_mul_weight = tform(X) @ self.weight
+        if len(X.shape) > len(self.weight.shape) and X.shape[-1] != self.weight.shape[0]:
+            if len(X.shape) == 4 and X.shape[1]*X.shape[2]*X.shape[3] == self.weight.shape[0]:
+                tform = nn.Flatten()
+                linear = tform(X) @ self.weight
+            else:
+                import pdb;pdb.set_trace()
         else:
-            X_mul_weight = X @ self.weight
-        if self.bias:
-            return X_mul_weight + self.bias.broadcast_to(X_mul_weight.shape)
+            linear = X @ self.weight
+        if self.use_bias:
+            return linear + self.bias.broadcast_to(linear.shape)
         else:
-            return X_mul_weight
+            return linear
         ### END YOUR SOLUTION
-
 
 
 class Flatten(Module):
