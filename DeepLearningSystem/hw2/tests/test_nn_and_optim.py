@@ -1090,8 +1090,8 @@ def test_mlp_eval_epoch_1():
 
 def test_mlp_train_mnist_1():
     np.testing.assert_allclose(train_mnist_1(250, 2, ndl.optim.SGD, 0.001, 0.01, 100),
-        # np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.001, atol=0.001)
-        np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.01, atol=0.01)
+        np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.001, atol=0.001)
+        # np.array([0.4875 , 1.462595, 0.3245 , 1.049429]), rtol=0.01, atol=0.01)
 
 def submit_mlp_resnet():
     mugrade.submit(residual_block_num_params(17, 13, nn.BatchNorm1d))

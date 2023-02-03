@@ -1,5 +1,6 @@
 """The module.
 """
+import imp
 from typing import List, Callable, Any
 from needle.autograd import Tensor
 from needle import ops
@@ -98,14 +99,15 @@ class Linear(Module):
         #     self.bias = Parameter(self.bias)
         # else:
         #     self.bias = None
-        self.use_bias = bias
         self.weight = Parameter(init.kaiming_uniform(in_features, out_features))
-        if self.use_bias:
-            self.bias = init.kaiming_uniform(out_features, 1)
+        if bias:
+            self.bias = init.kaiming_uniform(out_features, 1, )
             self.bias = self.bias.reshape((1, out_features))
+            # import pdb;pdb.set_trace()
+            # self.bias = init.rand(out_features, low=0, high=1)
             self.bias = Parameter(self.bias, device=device, dtype=dtype)
-        # else:
-        #     self.bias = None
+        else:
+            self.bias = None
         ### END YOUR SOLUTION
 
     # def forward(self, X: Tensor) -> Tensor:
@@ -126,7 +128,7 @@ class Linear(Module):
                 import pdb;pdb.set_trace()
         else:
             linear = X @ self.weight
-        if self.use_bias:
+        if self.bias is not None:
             return linear + self.bias.broadcast_to(linear.shape)
         else:
             return linear

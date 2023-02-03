@@ -489,6 +489,36 @@ def gradient(out):
     \end{cases}
   $$
 
+## Tanh
+- forward
+  - $ 
+      tanh(x) = \frac{sinh(x)}{cosh(x)}
+              = \frac{e^{2x} - 1}{e^{2x} + 1} 
+              = \frac{e^{x} - e^{-x}}{e^{x} + e^{-x}}
+    $
+- backward
+  - $
+      \frac{\partial tanh}{\partial x}
+        = \frac{\partial}{\partial x} \frac{sinh(x)}{cosh(x)}
+        = \frac{\frac{\partial}{\partial x} sinh(x) * cosh(x) - \frac{\partial}{\partial x} cosh(x) * sinh(x)}{cosh^2(x)}
+        = \frac{cosh^2(x) - sinh^2(x)}{cosh^2(x)}
+        = 1 - \frac{sinh^2(x)}{cosh^2(x)}
+        = 1 - tanh^2(x)
+    $
+  - $
+      \frac{\partial L}{\partial x}
+        = \frac{\partial L}{\partial tanh} * \frac{\partial tanh}{\partial x}
+        = o_g * (1 - tanh^2(x))
+    $
+
+## Stack
+
+
+---
+---
+
+
+# initial
 ## Xavier uniform
 - $ U(-a, a) $
 - $ a = gain * \sqrt{\frac{6}{fan\_in + fan\_out}} $

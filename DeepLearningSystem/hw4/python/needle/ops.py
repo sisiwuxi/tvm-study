@@ -2,6 +2,8 @@
 # Global operator table.
 from numbers import Number
 from typing import Optional, List
+
+from regex import P
 from .autograd import NDArray
 from .autograd import Op, Tensor, Value, TensorOp
 from .autograd import TensorTuple, TensorTupleOp
@@ -132,12 +134,19 @@ class PowerScalar(TensorOp):
 
     def compute(self, a: NDArray) -> NDArray:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # for i in range(self.scalar):
+        #     a = a*a
+        # return a
+        # return array_api.power(a, self.scalar)
+        return a ** self.scalar 
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # y' * s * x^{s-1}
+        lhs, = node.inputs
+        # return out_grad * self.scalar * array_api.power(lhs, (self.scalar - 1))
+        return (out_grad*self.scalar* lhs **(self.scalar - 1), )
         ### END YOUR SOLUTION
 
 
@@ -150,12 +159,19 @@ class EWiseDiv(TensorOp):
 
     def compute(self, a, b):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # return array_api.divide(a, b)
+        return a/b
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, rhs = node.inputs
+        # y'*(1/rhs)
+        lhs_gradient = out_grad/rhs
+        # y'*-(u/v^2)
+        # rhs_gradient = out_grad * (-1) * array_api.divide(lhs, array_api.power(rhs, 2))
+        rhs_gradient = out_grad * (-1) * lhs / rhs / rhs
+        return lhs_gradient, rhs_gradient
         ### END YOUR SOLUTION
 
 
@@ -169,12 +185,12 @@ class DivScalar(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return a/self.scalar
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return out_grad/self.scalar
         ### END YOUR SOLUTION
 
 
@@ -188,12 +204,22 @@ class Transpose(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        order = list(range(len(a.shape)))
+        if self.axes is None:
+            order[-1] = order[-2]
+            order[-2] = len(order) - 1
+        else:
+            order[self.axes[0]] = self.axes[1]
+            order[self.axes[1]] = self.axes[0]
+        return a.permute(tuple(order))
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is not None:
+            return transpose(out_grad, self.axes)
+        else: 
+            return transpose(out_grad)
         ### END YOUR SOLUTION
 
 
@@ -207,12 +233,13 @@ class Reshape(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.reshape(a, self.shape)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        return reshape(out_grad, lhs.shape)
         ### END YOUR SOLUTION
 
 
@@ -225,11 +252,18 @@ class BroadcastTo(TensorOp):
         self.shape = shape
 
     def compute(self, a):
-        return array_api.broadcast_to(a, self.shape).compact()
+        return array_api.broadcast_to(a, self.shape)
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        shape = list(lhs.shape)
+        axes = []
+        shape = [1] * (len(self.shape) - len(shape)) + shape
+        for i, s in enumerate(self.shape):
+            if i >= len(shape) or s != shape[i]:
+                axes.append(i)
+        return reshape(summation(out_grad, tuple(axes)), lhs.shape)
         ### END YOUR SOLUTION
 
 
@@ -243,12 +277,39 @@ class Summation(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.axes is None:
+            return a.sum()
+        else:
+            # NOTE self.axes maybe int
+            if isinstance(self.axes, int):
+                return a.sum(self.axes) 
+            # NOTE only support sum in a single dim
+            for i, axis in enumerate(sorted(list(self.axes))):
+                # NOTE -i because each sum() operation will reduce the dimension number
+                a = a.sum(axis-i)
+            return a
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        shape = lhs.shape
+        shape_out = [1] * len(shape)
+        if self.axes is not None:
+            if isinstance(self.axes, int):
+                s = set([self.axes])
+            else:
+                s = set(self.axes)
+        else:
+            s = set(range(len(shape)))
+        j = 0
+        for i in range(len(shape)):
+            if i not in s:
+                shape_out[i] = out_grad.shape[j]
+                j += 1
+        # print(self.axes, out_grad.shape, shape_out, shape)
+        result =  broadcast_to(reshape(out_grad, tuple(shape_out)), shape)
+        return result        
         ### END YOUR SOLUTION
 
 
@@ -259,12 +320,21 @@ def summation(a, axes=None):
 class MatMul(TensorOp):
     def compute(self, a, b):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return a @ b
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, rhs = node.inputs
+        grad_a = matmul(out_grad, transpose(rhs))
+        grad_b = matmul(transpose(lhs), out_grad)
+        if grad_a.shape != lhs.shape:
+            length = len(grad_a.shape) - len(lhs.shape)
+            grad_a = summation(grad_a, axes=tuple(range(length)))
+        if grad_b.shape != rhs.shape:
+            length = len(grad_b.shape) - len(rhs.shape)
+            grad_b = summation(grad_b, axes=tuple(range(length)))
+        return grad_a, grad_b        
         ### END YOUR SOLUTION
 
 
@@ -275,12 +345,12 @@ def matmul(a, b):
 class Negate(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return -1 * a
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return mul_scalar(out_grad, -1)
         ### END YOUR SOLUTION
 
 
@@ -291,12 +361,13 @@ def negate(a):
 class Log(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.log(a)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        return out_grad/lhs
         ### END YOUR SOLUTION
 
 
@@ -307,12 +378,13 @@ def log(a):
 class Exp(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.exp(a)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        return out_grad * exp(lhs)
         ### END YOUR SOLUTION
 
 
@@ -323,12 +395,14 @@ def exp(a):
 class ReLU(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.maximum(a, 0)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs = node.inputs[0].realize_cached_data()
+        mask = Tensor(lhs > 0, device=out_grad.device, dtype=out_grad.dtype, requires_grad=False)
+        return out_grad * mask
         ### END YOUR SOLUTION
 
 
@@ -342,12 +416,50 @@ class LogSumExp(TensorOp):
 
     def compute(self, Z):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        max_z = Z.max(axis=self.axes, keepdims=True)
+        exp_z = array_api.exp(Z - max_z.broadcast_to(Z.shape))
+        sum_z = exp_z.sum(axis=self.axes, keepdims=True)
+        log_z = array_api.log(sum_z)
+        log_sum_exp_z = log_z + max_z
+
+        if self.axes is None:
+            axes = list(range(len(Z.shape)))
+        elif isinstance(self.axes, int):
+            axes = [self.axes]
+        else:
+            axes = list(self.axes)
+        
+        if self.axes is not None:
+            out_shape = [size for i, size in enumerate(Z.shape) if i not in axes]
+        else:
+            out_shape = [1]
+        
+        return log_sum_exp_z.reshape(tuple(out_shape))
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        lhs, = node.inputs
+        if self.axes is not None:
+            shape = [1] * len(lhs.shape)
+            if isinstance(self.axes, int):
+                s = set([self.axes])
+            else:
+                s = set(self.axes)
+            j = 0
+            for i in range(len(shape)):
+                if i not in s:
+                    shape[i] = node.shape[j]
+                    j += 1
+            node_new = node.reshape(shape)
+            grad_new = out_grad.reshape(shape)
+        else:
+            node_new = node
+            grad_new = out_grad
+        # print(node.shape, lhs.shape, node_new.shape, out_grad.shape)
+        grad_new = grad_new.broadcast_to(lhs.shape)
+        node_new = node_new.broadcast_to(lhs.shape)
+        return grad_new * exp(lhs - node_new)
         ### END YOUR SOLUTION
 
 
@@ -358,12 +470,12 @@ def logsumexp(a, axes=None):
 class Tanh(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return a.tanh()
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return (1 - tanh(node.inputs[0])**2) * out_grad
         ### END YOUR SOLUTION
 
 
@@ -383,13 +495,30 @@ class Stack(TensorOp):
 
     def compute(self, args):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        shape = args[0].shape
+        new_shape = list(shape)
+        new_shape.insert(self.axis, len(args))
+
+        out = array_api.empty(
+            new_shape, dtype=args[0].dtype, device=args[0].device)
+
+        slices = []
+        for i in range(len(new_shape)):
+            if i != self.axis:
+                slices.append(slice(new_shape[i]))
+            else:
+                slices.append(0)
+        for i in range(len(args)):
+            slices[self.axis] = i
+            # NOTE reshape
+            out[tuple(slices)] = args[i].reshape((1, ) + shape)
+        return out
         ### END YOUR SOLUTION
 
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return split(out_grad, self.axis)
         ### END YOUR SOLUTION
 
 
@@ -409,12 +538,18 @@ class Split(TensorTupleOp):
 
     def compute(self, A):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        slices = [slice(0, A.shape[i], 1) if i!=self.axis else 0 for i in range(len(A.shape))]
+        tensors = []
+        new_shape = tuple([A.shape[s] for s in range(len(A.shape)) if s != self.axis])
+        for i in range(A.shape[self.axis]):
+            slices[self.axis] = i
+            tensors.append(A[tuple(slices)].reshape(new_shape))
+        return tuple(tensors)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return stack(tuple(out_grad), self.axis)
         ### END YOUR SOLUTION
 
 
@@ -428,12 +563,12 @@ class Flip(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return array_api.flip(a, self.axes)
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return flip(out_grad, self.axes)
         ### END YOUR SOLUTION
 
 
@@ -449,12 +584,28 @@ class Dilate(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for ax in self.axes:
+            if ax >= len(a.shape):
+                return a
+
+        new_shape = list(a.shape)
+        for ax in self.axes:
+            new_shape[ax] += self.dilation * new_shape[ax]
+        # NOTE device
+        ret = init.zeros(*new_shape, device=a.device)
+        slices = [
+            # NOTE +1
+            slice(0, new_shape[ax], self.dilation+1) if ax in self.axes 
+            else slice(0, new_shape[ax], 1)
+            for ax in range(len(a.shape))
+        ]
+        ret.cached_data[tuple(slices)] = a
+        return ret.cached_data
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return undilate(out_grad, self.axes, self.dilation)
         ### END YOUR SOLUTION
 
 
@@ -468,12 +619,17 @@ class UnDilate(TensorOp):
 
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        slices = [
+            slice(0, a.shape[ax], self.dilation+1) if ax in self.axes 
+            else slice(0, a.shape[ax])
+            for ax in range(len(a.shape))
+        ]
+        return a[tuple(slices)]
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return dilate(out_grad, self.axes, self.dilation)
         ### END YOUR SOLUTION
 
 
@@ -488,12 +644,50 @@ class Conv(TensorOp):
 
     def compute(self, A, B):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        A = A.pad(((0, 0), (self.padding, self.padding), (self.padding, self.padding), (0, 0)))
+        N, Hi, Wi, Ci = A.shape
+        Kh, Kw, Ci, Co = B.shape
+        Ns, Hs, Ws, Cs = A.strides
+        Ho = Hi-Kh+1
+        Wo = Wi-Kw+1
+        # img2col
+        DA = A.as_strided((N, Ho, Wo, Kh, Kw, Ci), (Ns, Hs, Ws, Hs, Ws, Cs)).compact()
+        DM = N * Ho * Wo
+        DK = Kh * Kw * Ci
+        DN = Co
+        DA = DA.reshape((DM, DK))
+        out = DA @ (B.reshape((DK, DN)))
+        return out.reshape((N, Ho, Wo, Co))[:, ::self.stride, ::self.stride, :]
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        X, W = node.inputs
+        N, Hi, Wi, Ci = X.shape
+        Kh, Kw, Ci, Co = W.shape
+        P = self.padding
+        '''
+        out_grad[N, Hi+2*P-Kh+1, Wi+2*P-Kw+1, Co]
+        W[Kh, Kw, Ci, Co]
+        X[N, Hi, Wi, Ci]
+        '''        
+        W_flip = flip(W, (0, 1)).transpose((2, 3))   
+        if self.stride > 1:
+            out_grad = dilate(out_grad, (1, 2), self.stride-1)
+        dX = conv(out_grad, W_flip, padding=Kh-1)
+        # dX = Tensor(dX.cached_data[:, Kh-1:Hi+Kh-1, Kw-1:Wi+Kw-1, :])
+        # NOTE: begin with self.padding!
+        dX = Tensor(dX.cached_data[:, P:Hi+P, P:Wi+P, :], device=dX.device, dtype=dX.dtype)
+        '''
+        X[Ci, Hi, Wi, N]
+        out_grad[N, Hi+2*P-Kh+1, Wi+2*P-Kw+1, Co]
+        W[Ci, Kh, Kw, Co]
+        '''
+        X = X.transpose((0, 3))
+        out_grad = out_grad.transpose((0, 2)).transpose((0, 1))
+        dW = conv(X, out_grad, padding=self.padding)
+        dW = dW.transpose((0, 2)).transpose((0, 1))
+        return dX, dW
         ### END YOUR SOLUTION
 
 

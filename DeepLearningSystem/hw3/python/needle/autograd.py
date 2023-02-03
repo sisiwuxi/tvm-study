@@ -1,4 +1,3 @@
-
 """Core data structures."""
 import needle
 from typing import List, Optional, NamedTuple, Tuple, Union
@@ -20,14 +19,17 @@ class Op:
 
     def compute(self, *args: Tuple[NDArray]):
         """Calculate forward pass of operator.
+
         Parameters
         ----------
         input: np.ndarray
             A list of input arrays to the function
+
         Returns
         -------
         output: nd.array
             Array output of the operation
+
         """
         raise NotImplementedError()
 
@@ -35,12 +37,15 @@ class Op:
         self, out_grad: "Value", node: "Value"
     ) -> Union["Value", Tuple["Value"]]:
         """Compute partial adjoint for each input value for a given output adjoint.
+
         Parameters
         ----------
         out_grad: Value
             The adjoint wrt to the output value.
+
         node: Value
             The value node of forward evaluation.
+
         Returns
         -------
         input_grads: Value or Tuple[Value]
@@ -61,7 +66,7 @@ class Op:
 
 
 class TensorOp(Op):
-    """ Op class specialized to output tensors, will be alternate subclasses for other structures """
+    """ Op class specialized to output tensors, will be alterate subclasses for other structures """
 
     def __call__(self, *args):
         return Tensor.make_from_op(self, args)
@@ -146,9 +151,11 @@ class Value:
         return value
 
 
+
 ### Not needed in HW1
 class TensorTuple(Value):
     """Represent a tuple of tensors.
+
     To keep things simple, we do not support nested tuples.
     """
 
@@ -309,7 +316,10 @@ class Tensor(Value):
 
     def __pow__(self, other):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if isinstance(other, Tensor):
+            raise NotImplementedError()
+        else:
+            return needle.ops.PowerScalar(other)(self)
         ### END YOUR SOLUTION
 
     def __sub__(self, other):
@@ -317,6 +327,12 @@ class Tensor(Value):
             return needle.ops.EWiseAdd()(self, needle.ops.Negate()(other))
         else:
             return needle.ops.AddScalar(-other)(self)
+       
+    def __rsub__(self, other):
+        if isinstance(other, Tensor):
+            return needle.ops.EWiseAdd()(needle.ops.Negate()(self), other)
+        else:
+            return needle.ops.AddScalar(other)(-self)
 
     def __truediv__(self, other):
         if isinstance(other, Tensor):
@@ -353,6 +369,7 @@ class Tensor(Value):
 
 def compute_gradient_of_variables(output_tensor, out_grad):
     """Take gradient of output node with respect to each node in node_list.
+
     Store the computed result in the grad field of each Variable.
     """
     # a map from node to a list of gradient contributions from each output node
@@ -361,31 +378,50 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     # We are really taking a derivative of the scalar reduce_sum(output_node)
     # instead of the vector output_node. But this is the common case for loss function.
     node_to_output_grads_list[output_tensor] = [out_grad]
-
     # Traverse graph in reverse topological order given the output_node that we are taking gradient wrt.
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for node in reverse_topo_order: 
+        node.grad = sum_node_list(node_to_output_grads_list[node])
+        
+        if node.is_leaf():
+            continue
+        for i, grad in enumerate(node.op.gradient_as_tuple(node.grad, node)):
+            input_ =  node.inputs[i]
+            if input_ not in node_to_output_grads_list:
+                node_to_output_grads_list[input_] = []
+            node_to_output_grads_list[input_].append(grad)
     ### END YOUR SOLUTION
 
 
 def find_topo_sort(node_list: List[Value]) -> List[Value]:
     """Given a list of nodes, return a topological sort list of nodes ending in them.
+
     A simple algorithm is to do a post-order DFS traversal on the given nodes,
     going backwards based on input edges. Since a node is added to the ordering
     after all its predecessors are traversed due to post-order DFS, we get a topological
     sort.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    visited = set()
+    topo_order = []
+    for node in node_list:
+        if node not in visited: topo_sort_dfs(node, visited, topo_order)
+    return topo_order
     ### END YOUR SOLUTION
 
 
 def topo_sort_dfs(node, visited, topo_order):
     """Post-order DFS"""
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    if node in visited: return
+
+    for next in node.inputs:
+        topo_sort_dfs(next, visited, topo_order)
+    
+    visited.add(node)
+    topo_order.append(node)
     ### END YOUR SOLUTION
 
 

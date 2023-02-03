@@ -11,6 +11,8 @@ import itertools
 _DEVICES = [ndl.cpu(), pytest.param(ndl.cuda(),
     marks=pytest.mark.skipif(not ndl.cuda().enabled(), reason="No GPU"))]
 
+# _DEVICES = [ndl.cpu()]
+
 def backward_check(f, *args, **kwargs):
     eps = 1e-3
     out = f(*args, **kwargs)
@@ -451,7 +453,7 @@ def test_op_conv(Z_shape, W_shape, stride, padding, backward, device):
 @pytest.mark.parametrize("device", _DEVICES)
 def test_train_cifar10(device):
     np.random.seed(0)
-    dataset = ndl.data.CIFAR10Dataset("./data/cifar-10-batches-py", train=True)
+    dataset = ndl.data.CIFAR10Dataset("../data/cifar-10-batches-py", train=True)
     dataloader = ndl.data.DataLoader(\
              dataset=dataset,
              batch_size=128,
@@ -663,7 +665,7 @@ def submit_resnet9():
     MugradeSubmit(ndl.Tensor(num_params(model)))
 
     np.random.seed(1)
-    dataset = ndl.data.CIFAR10Dataset("./data/cifar-10-batches-py", train=True)
+    dataset = ndl.data.CIFAR10Dataset("../data/cifar-10-batches-py", train=True)
     dataloader = ndl.data.DataLoader(\
              dataset=dataset,
              batch_size=128,

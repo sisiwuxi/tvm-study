@@ -29,7 +29,25 @@ def epoch_general_cifar10(dataloader, model, loss_fn=nn.SoftmaxLoss(), opt=None)
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    correct, loss_sum, n_step, n_samplers = 0., 0., 0, 0
+    if opt:
+        model.train()
+    else:
+        model.eval()
+    for X, y in dataloader:
+        if opt:
+            opt.reset_grad()
+        pred = model(X)
+        loss = loss_fn(pred, y)
+        correct += (pred.numpy().argmax(axis=1) == y.numpy()).sum()
+        if opt:
+            loss.backward()
+            opt.step()
+        loss_sum += loss.numpy()
+        n_step += 1
+        n_samplers += X.shape[0]
+
+    return correct / n_samplers, loss_sum / n_step
     ### END YOUR SOLUTION
 
 
@@ -53,7 +71,11 @@ def train_cifar10(model, dataloader, n_epochs=1, optimizer=ndl.optim.Adam,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+    for _ in range(n_epochs):
+        train_acc, train_loss = epoch_general_cifar10(dataloader, model, loss_fn=loss_fn(), opt=opt)
+        # print(train_acc, train_loss)
+    return train_acc, train_loss
     ### END YOUR SOLUTION
 
 
@@ -72,7 +94,7 @@ def evaluate_cifar10(model, dataloader, loss_fn=nn.SoftmaxLoss):
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return epoch_general_cifar10(dataloader, model, loss_fn())
     ### END YOUR SOLUTION
 
 
@@ -100,7 +122,36 @@ def epoch_general_ptb(data, model, seq_len=40, loss_fn=nn.SoftmaxLoss(), opt=Non
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    correct, loss_sum, n_step, n_samplers = 0., 0., 0, 0
+    if opt:
+        model.train()
+    else:
+        model.eval()
+
+    h = None
+    for i in range(0, data.shape[0]-1, seq_len):
+        X, y = ndl.data.get_batch(data, i, seq_len, device, dtype)
+        if opt:
+            opt.reset_grad()
+        # NOTE: use
+        pred, h = model(X, h)
+        
+        if isinstance(h, tuple):
+            h = (h[0].detach(), h[1].detach())
+        else:
+            h = h.detach()
+        
+        loss = loss_fn(pred, y)
+        correct += (pred.numpy().argmax(axis=1) == y.numpy()).sum()
+        if opt:
+            loss.backward()
+            opt.step()
+        # NOTE multiply seq_len
+        loss_sum += loss.numpy() * y.shape[0]
+        n_step += 1
+        n_samplers += y.shape[0]
+
+    return correct / n_samplers, loss_sum / n_samplers
     ### END YOUR SOLUTION
 
 
@@ -127,7 +178,11 @@ def train_ptb(model, data, seq_len=40, n_epochs=1, optimizer=ndl.optim.SGD,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+    for _ in range(n_epochs):
+        train_acc, train_loss = epoch_general_ptb(data, model, seq_len=seq_len, loss_fn=loss_fn(), opt=opt, clip=clip, device=device, dtype=dtype)
+        # print(train_acc, train_loss)
+    return train_acc, train_loss
     ### END YOUR SOLUTION
 
 
@@ -148,7 +203,7 @@ def evaluate_ptb(model, data, seq_len=40, loss_fn=nn.SoftmaxLoss,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return epoch_general_ptb(data, model, seq_len=seq_len, loss_fn=loss_fn(), device=device, dtype=dtype)
     ### END YOUR SOLUTION
 
 

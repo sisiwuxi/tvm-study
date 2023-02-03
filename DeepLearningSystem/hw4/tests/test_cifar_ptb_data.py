@@ -19,7 +19,7 @@ _DEVICES = [ndl.cpu(), pytest.param(ndl.cuda(),
 TRAIN = [True, False]
 @pytest.mark.parametrize("train", TRAIN)
 def test_cifar10_dataset(train):
-    dataset = ndl.data.CIFAR10Dataset("data/cifar-10-batches-py", train=train)
+    dataset = ndl.data.CIFAR10Dataset("../data/cifar-10-batches-py", train=train)
     if train:
         assert len(dataset) == 50000
     else:
@@ -36,7 +36,7 @@ BATCH_SIZES = [1, 15]
 @pytest.mark.parametrize("train", TRAIN)
 @pytest.mark.parametrize("device", _DEVICES, ids=["cpu", "cuda"])
 def test_cifar10_loader(batch_size, train, device):
-    cifar10_train_dataset = ndl.data.CIFAR10Dataset("data/cifar-10-batches-py", train=True)
+    cifar10_train_dataset = ndl.data.CIFAR10Dataset("../data/cifar-10-batches-py", train=True)
     train_loader = ndl.data.DataLoader(cifar10_train_dataset, batch_size)
     for (X, y) in train_loader:
         break
@@ -53,7 +53,7 @@ BPTT = [3, 32]
 @pytest.mark.parametrize("device", _DEVICES, ids=["cpu", "cuda"])
 def test_ptb_dataset(batch_size, bptt, train, device):
     # TODO update with more tests?
-    corpus = ndl.data.Corpus("data/ptb")
+    corpus = ndl.data.Corpus("../data/ptb")
     if train:
         data = ndl.data.batchify(corpus.train, batch_size, device=device, dtype="float32")
     else:
@@ -63,7 +63,7 @@ def test_ptb_dataset(batch_size, bptt, train, device):
     assert y.shape == (bptt * batch_size,)
     assert isinstance(X, ndl.Tensor)
     assert X.dtype == 'float32'
-    assert X.device == device
+    assert X.device == device    
     assert isinstance(X.cached_data, nd.NDArray)
     ntokens = len(corpus.dictionary)
     assert ntokens == 10000
@@ -89,7 +89,7 @@ def submit_cifar10():
         print('You need a GPU to run some of these tests.')
     devices = [ndl.cpu(), ndl.cuda()]
     for train in TRAIN:
-        dataset = ndl.data.CIFAR10Dataset("data/cifar-10-batches-py", train=train)
+        dataset = ndl.data.CIFAR10Dataset("../data/cifar-10-batches-py", train=train)
         mugrade_submit(len(dataset))
         for (device, batch_size) in itertools.product(devices, TEST_BATCH_SIZES):
             loader = ndl.data.DataLoader(dataset, batch_size)
@@ -103,7 +103,7 @@ def submit_ptb():
     # devices = [ndl.cpu(), ndl.cuda()] if ndl.cuda().enabled() else [ndl.cpu()]
     devices = [ndl.cpu(), ndl.cuda()]
 
-    corpus = ndl.data.Corpus("data/ptb")
+    corpus = ndl.data.Corpus("../data/ptb")
     mugrade_submit(np.array(len(corpus.dictionary)))
     for train in TRAIN:
         for (device, batch_size, bptt) in itertools.product(devices, TEST_BATCH_SIZES, TEST_BPTT):
