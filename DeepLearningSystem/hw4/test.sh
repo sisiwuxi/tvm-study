@@ -1,5 +1,5 @@
 # python3 -m pytest -l -v -k "nd_backend"
-# python3 -m pytest -l -v -k "cifar10"
+python3 -m pytest -l -v -k "cifar10"
 # python3 -m pytest -l -v -k "pad_forward"
 # python3 -m pytest -l -v -k "flip"
 # python3 -m pytest -l -v -k "dilate"
@@ -13,4 +13,4 @@
 # python3 -m pytest -l -v -k "test_lstm"
 # python3 -m pytest -l -v -k "ptb"
 # python3 -m pytest -l -v -k "language_model_implementation"
-python3 -m pytest -l -v -k "language_model_training"
+# python3 -m pytest -l -v -k "language_model_training"
