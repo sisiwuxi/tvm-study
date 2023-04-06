@@ -787,3 +787,235 @@
 - clang loop_invariance.c -O1 -Rpass=licm
 - clang -emit-llvm -S 1.cpp -fno-discard-value-names
 - clang -O1 -emit-llvm -S 1.cpp -fno-discard-value-names -o 1-opt.ll
+
+
+---
+
+# loop strip
+
+## strip
+- before
+```
+  for (i=0; i<N; i++) {
+    A[i] = B[i] + C[i];
+  }  
+```
+
+- after
+```
+  for (i=0; i<N; i+=strip) {
+    for (j=i; j<i+strip-1; j++) {
+      A[j] = B[j] + C[j];
+    }
+  }
+```
+  - #itereations = N
+  - #process = P
+  - strip = N/P
+    - best throughput
+    - minimum synchronize
+- pros
+  - efficient multi processor usage
+  - easy to transfer parallel to hardware style
+  - outer parallelism, inner vectorization
+
+## Unsuitable situation
+```
+  for (i=0; i<N; i++) {
+    for (j=1; j<i; j++) {
+      A[j][j] = A[j][j-1] + B[j];
+    }
+  }
+```
+
+## loop_unblock = loop_strip + loop_permute
+
+
+---
+
+# loop unblock
+## insert the number of loop
+
+- original
+  ```
+    for (i=0; i<N; i++) {
+      for (j=0; j<M; j++) {
+        B[i] = B[i] + A[i][j];
+      }
+    }
+  ```
+  - N=8, M=2
+    ```
+    B
+      0,1,2,3,4,5,6,7
+    A
+      1 2
+      1 2
+      1 2
+      1 2
+      1 2
+      1 2
+      1 2
+      1 2
+    B
+      3,4,5,6,7,8,9.10
+    ```
+  - Problem: N=8, M=200,000,000
+    - the cacheline which B used will be freed by LRU (Least Recently Used)
+    
+- loop strip
+  ```
+    S = 4
+    for (i=0; i<N; i++) {
+      for (jo=0; jo<M; jo+=S) {
+        for (ji=jo; ji<MIN(jo+S, M); ji++) {
+          B[i] = B[i] + A[i][ji];
+        }
+      }
+    }
+  ```
+  - N=8, M=2, S=4
+    ```
+    B
+      0,1,2,3
+    A
+      1 2
+      1 2
+      1 2
+      1 2
+    B
+      3,4,5,6
+    ```
+    - improve B locality
+- loop permute
+  ```
+    S = 4 // match hardware
+    for (jo=0; jo<M; jo+=S) {
+      for (i=0; i<N; i++) {  
+        for (ji=jo; ji<MIN(jo+S, M); ji++) {
+          B[i] = B[i] + A[i][ji];
+        }
+      }
+    }
+  ```
+- pros
+  - improve data locality
+  - legality
+- cons
+  - time locality
+    - cacheline(instinsic & data) reused
+  - space locality
+    - one address accessed, nearby address will be accessed later
+
+## strip more times
+
+- original
+  ```
+    for (i=0; i<N; i++) {
+      for (j=0; j<M; j++) {
+        for (k=0; k<K; k++) {
+          C[i][j] = C[i][j] + A[i][k]*B[k][j];
+        }
+      }
+    }
+  ```
+  - size(A[i][k] + B[k][j]) > L1d or L2
+  - high cache miss ratio of C[i][j]
+
+- strip k
+  ```
+    for (k=0; k<K; k+=SK) {
+      for (i=0; i<N; i++) {
+        for (j=0; j<M; j++) {          
+          for (ki=k; ki<MIN(k+SK, K); ki++) {
+            C[i][j] = C[i][j] + A[i][ki]*B[ki][j];
+          }
+        }
+      }
+    }
+  ```
+  - increase the reuse of C[i][j]
+
+- strip j
+  ```
+    for (j=0; j<M; j+=SJ) {
+      for (k=0; k<K; k+=SK) {
+        for (i=0; i<N; i++) {        
+          for (ji=j; ji<MIN(j+SJ, M); ji++) {
+            for (ki=k; ki<MIN(k+SK, K); ki++) {
+              C[i][ji] = C[i][ji] + A[i][ki]*B[ki][ji];
+            }
+          }
+        }
+      }
+    }
+  ```
+  - increase the reuse of A[i][ki]
+
+- strip i
+  ```
+    for (i=0; i<N; i+=SI) {
+      for (j=0; j<M; j+=SJ) {
+        for (k=0; k<K; k+=SK) {
+          for (ii=i; ii<MIN(i+SI, N); ii++) {
+            for (ji=j; ji<MIN(j+SJ, M); ji++) {
+              for (ki=k; ki<MIN(k+SK, K); ki++) {
+                C[ii][ji] = C[ii][ji] + A[ii][ki]*B[ki][ji];
+              }
+            }
+          }
+        }
+      }
+    }
+  ```
+  - increase the reuse of B[ki][ji]
+
+
+---
+
+# loop fission
+- fission one loop to two or more seperate loop based on loop control condition
+- before
+  - #loop iterations = 1
+- after
+  - #loop iterations >=2
+
+## example 1
+- before
+  ```
+    for (i=1; i<N; i++) {
+      vec[i] = vec[i] + vec[M]
+    }
+  ```
+- after
+  - #loop iterations >=2
+  ```
+    for (i=1; i<M; i++) {
+      vec[i] = vec[i] + vec[M]
+    }
+    for (i=M; i<N; i++) {
+      vec[i] = vec[i] + vec[M]
+    }    
+  ```
+
+## example 2
+- loop vectorized using 16 byte vectors after loop fission
+- before
+  ```
+    for (i=1; i<N; i++) {
+      temp = a[i] - b[i]
+      coff[i] = (a[i] + b[i]) * temp
+      diff[i+M] = (c[i+M] + d[i+M])/phi
+    }
+  ```
+- after
+  - #loop iterations >=2
+  ```
+    for (i=1; i<N; i++) {
+      temp = a[i] - b[i]
+      coff[i] = (a[i] + b[i]) * temp
+    }
+    for (i=M; i<N; i++) {
+      diff[i] = (c[i] + d[i])/phi
+    }    
+  ```
