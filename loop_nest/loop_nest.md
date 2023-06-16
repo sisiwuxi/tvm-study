@@ -6,6 +6,29 @@
 # reference
 - optimizing compilers for modern architectures a dependence-based approach
 - Kai Nacke. Learn LLVM 12, A beginner's guide to learning llvm compiler tools and core libraries with c++
+- llvm-project/llvm/test/Transforms
+  - LoopBoundSplit
+  - LoopDeletion  
+  - LoopFlatten   
+  - LoopIdiom     
+  - LoopInterchange
+  - LoopPredication
+  - LoopRotate    
+  - LoopSimplifyCFG
+  - LoopTransformWarning
+  - LoopUnrollAndJam    
+  - LoopVersioning
+  - LoopDataPrefetch    
+  - LoopDistribute
+  - LoopFusion    
+  - LoopInstSimplify    
+  - LoopLoadElim  
+  - LoopReroll    
+  - LoopSimplify  
+  - LoopStrengthReduce  
+  - LoopUnroll    
+  - LoopVectorize 
+  - LoopVersioningLICM
 
 
 # why
@@ -1018,4 +1041,188 @@
     for (i=M; i<N; i++) {
       diff[i] = (c[i] + d[i])/phi
     }    
+  ```
+
+---
+
+# loop lean
+## reference
+- Optimizing compilers for modern architectures: a dependence-based approach; 2002
+- 基于全局数据重组的循环倾斜优化; 2017; 陈华军  王琦  洪超  方萌  
+  - 循环倾斜是程序优化中一种循环变换的手段,它改变空间迭代形式,将循环存在的跨迭代的并行用传统的并行标识出来,使得循环可以并行执行。但是循环倾斜后,并行执行的数据在内存中是离散的,而且每次迭代执行的次数是不一致的。为了更有效地利用SIMD,本文提出一种基于全局数据重组的循环倾斜优化方法。首先分析循环倾斜优化,针对数据离散的问题实现全局数据重组,改善数据局部性,循环易于向量化操作;针对迭代执行次数不一致问题,实现非满载向量操作,使尾循环得以向量执行。最后选择wavefront程序进行测试,优化后,程序计算可以获得平均10.73倍的加速效果。
+- Lean is a transformation that changes the form of the iterative space. It is an optimization method for mining the parallel potential in the loop. It can express the existing parallelism in the form of a parallel loop.
+- eliminate dependencies
+## two layers of loop
+- before
+  - definition
+  ```
+    for (int i=1; i<N; i++) {
+      for (int j=1; j<N; j++) {
+        A[i][j] = A[i][j-1] + A[i-1][j]
+      }
+    }
+  ```
+  - compute iterations
+    i=3,j=1                  i=3,j=2                  i=3,j=3
+    A[3][1]=A[3][0]+A[2][1]; A[3][2]=A[3][1]+A[2][2]; A[3][3]=A[3][2]+A[2][3]
+    i=2,j=1                  i=2,j=2                  i=2,j=3
+    A[2][1]=A[2][0]+A[1][1]; A[2][2]=A[2][1]+A[1][2]; A[2][3]=A[2][2]+A[1][3]
+    i=1,j=1                  i=1,j=2                  i=1,j=3
+    A[1][1]=A[1][0]+A[0][1]; A[1][2]=A[1][1]+A[0][2]; A[1][3]=A[1][2]+A[0][3]
+    - dependency
+      - A[1][1]
+        - A[2][1]
+        - A[1][2]
+      - A[1][2]
+        - A[2][2]
+        - A[1][3]
+      - A[2][2]
+        - A[3][2]
+        - A[2][3]
+  - can not parallel
+  ```
+  i
+  /|\
+    |
+    |  o->o->o
+    |  o->o->o
+    |  o->o->o   
+    |_______________\  j
+                    /
+  ```
+
+- after
+  - definition
+  ```
+    for (int i=1; i<N; i++) {
+      for (int j=i+1; j<i+N; j++) {
+        A[i][j-i] = A[i][j-i-1] + A[i-1][j-i];
+      }
+    }
+  ```
+  - compute iterations
+                                                      i=3,j=4                  i=3,j=5                  i=3,j=6
+                                                      A[3][1]=A[3][0]+A[2][1]; A[3][2]=A[3][1]+A[2][2]; A[3][3]=A[3][2]+A[2][3]
+                            i=2,j=3                  i=2,j=4                  i=2,j=5
+                            A[2][1]=A[2][0]+A[1][1]; A[2][2]=A[2][1]+A[1][2]; A[2][3]=A[2][2]+A[1][3]
+    i=1,j=2                  i=1,j=3                  i=1,j=4
+    A[1][1]=A[1][0]+A[0][1]; A[1][2]=A[1][1]+A[0][2]; A[1][3]=A[1][2]+A[0][3]
+  - parallel
+    - c0
+      - A[1][1]
+    - c1
+      - A[2][1]
+      - A[1][2]
+    - c2
+      - A[1][3]
+      - A[2][2]
+      - A[3][1]
+    - c3
+      - A[2][3]
+      - A[3][2]
+    - c4
+      - A[3][3]    
+  ```
+  i
+  /|\
+    |           o->o->o
+    |        o->o->o
+    |     o->o->o
+    |_______________________\  j
+                            /
+  ```
+
+  - add loop permute
+    - definition
+    ```
+      for (int j=2; j<8; j++) {
+        for (int i=max(1,j-4+1); i<min(j-1,4); i++) {
+          A[i][j-i] = A[i][j-i-1] + A[i-1][j-i];
+        }
+      }
+    ```
+    - compute iterations
+      max(1,7-4+1) min(7-1,4)  max(1,4) min(6,4)  4,4
+
+      max(1,6-4+1) min(6-1,4)  max(1,3) min(5,4)  3,4
+                                                        j=6,i=3
+                                                        A[3][3]=A[3][2]+A[2][3];
+      max(1,5-4+1) min(5-1,4)  max(1,2) min(4,4)  2,4
+                              j=5,i=2                  j=5,i=3                
+                              A[2][3]=A[1][1]+A[0][2]; A[3][2]=A[2][0]+A[1][1];
+      
+      max(1,4-4+1) min(4-1,4)  max(1,1) min(3,4)  1,3
+      j=4,i=1                  j=4,i=2                  j=4,i=3
+      A[1][3]=A[1][2]+A[0][1]; A[2][2]=A[2][1]+A[1][2]; A[3][1]=A[3][0]+A[2][1]
+
+      max(1,3-4+1) min(3-1,4)  max(1,0) min(2,4)  1,2
+      j=3,i=1                  j=3,i=2                
+      A[1][2]=A[1][1]+A[0][2]; A[2][1]=A[2][0]+A[1][1];
+
+      max(1,2-4+1) min(2-1,4)  max(1,-1) min(1,4)  1,1
+      j=2,i=1                  
+      A[1][1]=A[1][0]+A[0][1];
+    - parallel
+    ```
+    j
+    /|\
+      |
+      | o->o->o
+      | o->o->o
+      | o->o->o
+      |
+      |_______________________\  i
+                              /
+    ```
+  - iters=N
+    - before
+    ```
+      for (int i=1; i<N; i++) {
+        for (int j=1; j<N; j++) {
+          A[i][j] = A[i-1][j] + A[i][j-1];
+        }
+      }
+    ```
+    - after
+    ```
+      for (int j=2; j<2*N; j++) {
+        for (int i=max(1,j-N+1); i<min(N,j); i++) {
+          A[i][j-i] = A[i-1][j-i] + A[i][j-i-1];
+        }
+      }
+    ```
+## three layers of loop    
+- M=16,N=64,K=64
+- before
+  ```
+    for (int i=2; i<N+1; i++) {
+      for (int j=2; j<M+1; j++) {
+        for (int k=1; k<K; k++) {
+          A[i][j][k] = A[i][j-1][k] + A[i-1][j][k];
+          B[i][j][k+1] = B[i][j][k] + A[i][j][k];
+        }
+      }
+    }
+  ```
+- loop lean
+  ```
+    for (int i=2; i<N+1; i++) {
+      for (int j=2; j<M+1; j++) {
+        for (int k=i+j+1; k<i+j+K; k++) {
+          A[i][j][k-i-j] = A[i][j-1][k-i-j] + A[i-1][j][k-i-j];
+          B[i][j][k-i-j+1] = B[i][j][k-i-j] + A[i][j][k-i-j];
+        }
+      }
+    }
+  ```
+- loop permute
+  ```
+    for (int k=2; k<N+K; k++) {
+      for (int i=max(1,k-N-K); i<min(M,k+K-2); i++) {
+        for (int j=max(1,k-i-K+1); j<min(N,k+i-1); j++) {
+          A[i][j][k-i-j] = A[i][j-1][k-i-j] + A[i-1][j][k-i-j];
+          B[i][j][k-i-j] = B[i][j][k-i-j] + A[i][j][k-i-j];
+        }
+      }
+    }
   ```
