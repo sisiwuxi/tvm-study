@@ -1,5 +1,6 @@
 import tvm
 from tvm import te
+from tvm.driver.build_module import schedule_to_module
 import pdb
 
 def test_pragma_1():
@@ -26,8 +27,13 @@ def test_pragma_1():
 def test_pragma_2():
   # m = te.var("m")
   # l = te.var("l")
+<<<<<<< HEAD
   m = 16
   l = 16
+=======
+  m = 128
+  l = 128
+>>>>>>> 2012be057b1e8d74f2761654497646460f10adc8
   A = te.placeholder((m, l), name="A")
   B = te.compute((m, l), lambda i, j: A[i, j], name="B")
 
@@ -36,12 +42,29 @@ def test_pragma_2():
 
   print(tvm.lower(s, [B, A], simple_mode=True))
   print("---------cutting line---------")
+<<<<<<< HEAD
 
   s[B].pragma(xo, "auto_unroll_max_step", 2)
   print(tvm.lower(s, [B, A], simple_mode=True))
 
   # mod = schedule_to_module(s, [A, A1])
   # assert isinstance(mod["main"], tvm.tir.PrimFunc)
+=======
+  import pdb;pdb.set_trace()
+
+  s[B].pragma(xo, "auto_unroll_max_step", 10)
+  print(tvm.lower(s, [B, A], simple_mode=True))
+
+  # parallel_vectorize_unroll.py
+  # parallel_vectorize_unroll.cc
+  # mutate_unroll.cc
+  # rewrite_parallel_vectorize_unroll.cc
+  # s[B].pragma(xo, "unroll_explicit", True)
+  # print(tvm.lower(s, [B, A], simple_mode=True))
+
+  mod = schedule_to_module(s, [A, B])
+  assert isinstance(mod["main"], tvm.tir.PrimFunc)
+>>>>>>> 2012be057b1e8d74f2761654497646460f10adc8
 
 def test_pragma_3():
   nn = 1024
@@ -72,5 +95,10 @@ def test_pragma_3():
 
 if __name__ == "__main__":
   # test_pragma_1()
+<<<<<<< HEAD
   # test_pragma_2()
   test_pragma_3()
+=======
+  test_pragma_2()
+  # test_pragma_3()
+>>>>>>> 2012be057b1e8d74f2761654497646460f10adc8

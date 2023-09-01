@@ -611,6 +611,7 @@ def test_cuda_gmm():
         ("SampleCategorical", 0),
         ("SampleCategorical", 4),
     ]
+    import pdb;pdb.set_trace()
     mod = create_te_workload("GMM", 0)
     actual = _design_space(mod)
     check_sketches(
@@ -1222,13 +1223,13 @@ def test_cuda_tbg():
 
 
 if __name__ == "__main__":
-    test_cuda_c1d()
+    # test_cuda_c1d()
     # test_cuda_c2d()
     # test_cuda_c3d()
     # test_cuda_cap()
     # test_cuda_dep()
     # test_cuda_dil()
-    # test_cuda_gmm()
+    test_cuda_gmm()
     # test_cuda_grp()
     # test_cuda_t2d()
     # test_cuda_nrm()

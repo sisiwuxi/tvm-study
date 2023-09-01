@@ -499,13 +499,13 @@ def test_rewrite_tensorize_dense_dp4a():
     )
     sch = tvm.tir.Schedule(mod, debug_mask="all")
     sch.enter_postproc()
-
+    import pdb;pdb.set_trace()
     for proc in ctx.space_generator.postprocs:
         proc.apply(sch)
-
+    
     tvm.ir.assert_structural_equal(sch.mod, DenseDP4ATensorized)
 
 
 if __name__ == "__main__":
-    test_rewrite_tensorize_conv2d_nchwc_vnni()
+    # test_rewrite_tensorize_conv2d_nchwc_vnni()
     test_rewrite_tensorize_dense_dp4a()
